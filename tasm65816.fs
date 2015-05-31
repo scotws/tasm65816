@@ -30,11 +30,14 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 \ -----------------------
 \ LOW LEVEL ASSEMBLER INSTRUCTIONS
 
-\ Return least significant byte of 16-bit number
-: lsb ( u -- u )  0ff and ; 
+\ Return least significant byte of 16- or 24-bit number
+: lsb ( u -- u8 )  0ff and ; 
 
-\ Return most significant byte of 16-bit number
-: msb ( u -- u )  0ff00 and  8 rshift ; 
+\ Return most significant byte of 16- or 24-bit number
+: msb ( u -- u8 )  0ff00 and  8 rshift ; 
+
+\ Return the bank byte of a 24-bit number; assumes HEX
+: bank ( u -- u8 ) 0ff0000 and 10 rshift ; 
 
 \ convert 16 bit address to little-endian
 : swapbytes ( u -- uh ul )  dup msb swap lsb ; 
@@ -56,6 +59,9 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 
 \ Save one word in staging area, converting to little-endian
 : w,  ( w -- )  swapbytes b, b, ; 
+
+\ Save one long word in the staging area, converting to little-endian
+: lw, ( lw -- ) ." lw, not coded yet" ; \ HIER HIER 
 
 \ Save ASCII string provided by S" instruction (S, is reserved by gforth) 
 \ Note OVER + SWAP is also BOUNDS in gforth 
@@ -236,6 +242,11 @@ create replacedummy
    create c,
    does> c@ b, w, ; 
 
+: 4byte ( opcode -- ) ( HIER HIER ) 
+   create c, 
+   does> c@ ( HIER )  ; 
+
+
 \ caclulate branch
 : makebranch ( w -- u ) 
    lc -  1-
@@ -261,10 +272,10 @@ create replacedummy
 \ empty so it is easier to port this program to other processors
 
 \ OPCODES 00 - 0F 
-00 1byte brk       01 2byte ora.zxi
-04 2byte tsb.z     05 2byte ora.z     06 2byte asl.z     07 2byte rmb0.z
-08 1byte php       09 2byte ora.#     0a 1byte asl.a
-0c 3byte tsb       0d 3byte ora       0e 3byte asl       0f testbranch bbr0 
+00 1byte brk       01 2byte ora.dxi   02 2byte cop       03 2byte ora.s
+04 2byte tsb.d     05 2byte ora.d     06 2byte asl.d     07 2byte ora.dil
+08 1byte php       09 2byte ora.#     0a 1byte asl.a     0b 1byte phd
+0c 3byte tsb       0d 3byte ora       0e 3byte asl       0f 4byte ora.l
 
 \ OPCODES 10 - 1F 
 10 twig bpl        11 2byte ora.ziy   12 2byte ora.zi
