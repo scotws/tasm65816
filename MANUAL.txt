@@ -1,7 +1,7 @@
 Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 31. May 2015 
+This version: 01. June 2015 
 
 
 TL;DR
@@ -128,9 +128,27 @@ For quick typing, all commands are lower case, but will be listed here in upper 
     ORIGIN ( 65addr -- ) Tells the assembler where to start compilation in the 65816 
 64k 16-bit address space of one bank. This word is required. 
 
+    NATIVE ( -- ) Switch to native (16-bit) mode. Encodes the CLC XCE sequence.  
+
+    EMULATED ( -- ) Switch to emulated (8-bit) mode. Encodes the SEC XCE sequence (among other things). 
+
+    A->8 ( -- ) Switch Accumulator to 8-bit mode. Encodes the SEP $10 sequence CHECK. See below for discussion. 
+
+    A->16 ( -- ) Switch Accumulator to 16-bit mode. Encodes the REP $10 sequence CHECK. See below for discussion. 
+
+    XY->8 ( -- ) Switch X and Y to 8-bit mode. Encodes the SEP $20 sequence CHECK. See below for discussion. 
+
+    XY->16 ( -- ) Swtich X and Y to 16-bit mode. Encodes the REP $20 sequence CHECK. See below for discussion.
+
+    AXY->8 ( -- ) Switch A, X, and Y to 8-bit mode. Encodes the SEP $30 sequence CHECK. See below for discussion. 
+
+    AXY->16 ( -- ) Swtich A, X and Y to 16-bit mode. Encodes the REP $30 sequence CHECK. See below for discussion.
+
     B, ( u -- ) Store one byte in memory. Note this can be use with Forth LOOPs etc.
 
     W, ( u -- ) Store one word (16 bit) in memory in correct little-endian format. 
+
+    LW, ( u -- ) Store one long word (24 bit) in memory in correct little-endian format. 
 
     STR, ( addr u -- ) Store a ASCII string in memory. Use with S" STRING". Note that gforth uses S, so we can't. 
 
@@ -144,6 +162,8 @@ with S" STRING".
 
     MSB ( u -- u ) returns the most significant byte of a 16-bit number
 
+    BANK ( u -- u ) returns the bank byte of a 24-bit number
+
     ADVANCE ( 65addr -- ) Continue assembly at the address given, filling everything between here and there with zeros.
 
     END ( -- addr u ) End assembly, returning the address in Forth's memory where the first assembled instruction was saved and the length of the binary file. Use command such as DUMP to print it to the screen. 
@@ -151,6 +171,36 @@ with S" STRING".
     SAVE ( addr u "name" -- ) Following END, save the binary output to the file given. Note this will brutally overwrite existing files without warning. 
 
 We don't need a ".EQU" command -- just use the VALUE built-in Forth command. 
+
+
+
+MODE SWITCHES 
+
+The 65816 is a hybrid processor that has an "emulated" mode, where it pretends to be an 8-bit 6502, and a "native" mode, where the A, X, and Y registers can be switched to 16 bits. You can do this by hand with instructions such as "10 REP" or "20 SEP". However, the assembler itself needs to know what mode the processor is so it can decide if, say, A9 10 00 should be interpreted as 8-bit instruction sequence 
+
+        10 lda.# 
+           brk 
+
+or the 16-bit variant 
+
+      0010 lda.#  
+        
+The normal WDC assembler format uses the pseudo-commands LONGA ON/OFF and LONGI ON/OFF to tell this to the assembler. Note these commands do not generate any code. The Typist's Assembler uses the commands
+
+    A->8   A->16   XY->8   XY->16   AXY->8   AXY->16
+
+that not only encode the REP and SEP sequences, but also make sure that the correct number of operands are assigned to the hybrid opcodes. Therefore, it is very important that mode switches are performed by using those commands and not directly with REP and SEP (unless you really, really know what you are doing). 
+
+Compare the example from the WDC manual on page 92 to our version: 
+
+      MACHINE CODE      WDC ASSEMBLER           TYPIST'S ASSEMBLER
+
+         E2 20          SEP #$00100000               A->8
+                        LONGA OFF               
+         A9 3F          LDA #$3F                  3F lda.# 
+      8D 00 B1          STA $B100               B100 sta 
+
+Note the A->8 command automatically takes care of the SEP instruction for us, and also includes the function of the LONGA OFF sequence. It might seem to be violating the lower-case rule by using capital letters here, but it turns out these commands are easier to distinguish as pseudo-commands with captial letters. 
 
 
 
@@ -245,5 +295,4 @@ LINKS
 
 - Brad Rodriguez has published a series of articles on how to write your own assembler in Forth which were invaluable for this project. See those and other writings on Forth at http://www.bradrodriguez.com/papers/
 
-- Backgrounder book: "Assemblers And Loaders" by David Salomon (1993). Available as free PDF from 
-  http://www.davidsalomon.name/assem.advertis/AssemAd.html
+- Backgrounder book: "Assemblers And Loaders" by David Salomon (1993). Available as free PDF from http://www.davidsalomon.name/assem.advertis/AssemAd.html

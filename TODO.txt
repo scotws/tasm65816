@@ -1,0 +1,16 @@
+TODO for A Typist's 65816 Assembler in Forth 
+Scot W. Stevenson <scot.stevenson@gmail.com>
+First version: 31. May 2015
+This version: 01. June 2015 
+
+
+- See about included an "assert" command to make sure we have the correct mode for the A, X, and Y registers, maybe 
+
+        A16 assert 
+        XY8 assert 
+
+  that will interrupt the assembly if it is not true. Something like: 
+
+  : A16  mode.a 10 =  ; \ HEX assumed 
+  : XY8  mode.xy 8 =  ; 
+  : assert  invert if  ." Assert failed" ( PRINT BYTES) quit then ; 
