@@ -39,7 +39,7 @@ SO LET'S SEE THIS NEW SYNTAX OF YOURS
 
 Like all Forth, we use postfix notation (aka "ass-backwards"). We start with the operand, followed by a special version of the opcode that includes the addressing mode as an addition to to the opcode following a dot. This is the opcode's "tail" (because it would get confusing if we called it "postfix" as well). This way,  
 
-    lda $10       becomes         10 lda.z    
+    lda $10       becomes         10 lda.d    
 
 The new opcodes are justified along the space between them and the operand. 
 Note we don't have to use "$", "%" or "#" for the number formats because we can use HEX, BINARY, and DECIMAL from normal Forth. The complete list of addressing modes for the 65816 is: 
@@ -81,35 +81,32 @@ Where Forth words conflict with the opcodes, we add a dot to the opcode, but lea
 
 A small example: 
 
-              lda #$00                        00 lda.#
-              tax                                tax
+              LDA #$00                        00 lda.#
+              TAX                                tax
     loop1:                        -> loop1
-              sta $1000,x                   1000 sta.x
-              dex                                dex
-              bne loop1                    loop1 bne
+              STA $1000,x                   1000 sta.x
+              DEX                                dex
+              BNE loop1                    loop1 bne
 
 
 Included in this package are two larger example files: 
 
-    example.fs - Heavily commented, but won't produce working code
-             if assembled. 
+    example.fs - Heavily commented, but won't produce working code if assembled. 
         
-    rom.fs - Fewer comments, but will produce a working 8k image that can be
-             tested with a program such as A Crude 65816 Emulator (crude65816, 
-             https://github.com/scotws/crude65816 ) when it is done. 
+    rom.fs - Fewer comments, but will produce a working 8k image that can be tested with a program such as A Crude 65816 Emulator (crude65816, https://github.com/scotws/crude65816 ) when it is done. 
 
 
 COMMENTS, SPACING, AND MULTIPLE COMMANDS
 
 Since this is Forth, you start out with the complete set of Forth commands you can use in the assembler program. This means that comments are marked by a "\" that comments out everything to the end of the line (the ";" of conventional assemblers), and anything in round brackets is ignored as well.
 
-             00 lda.z   ( this is a comment ) 
-             01 sta.z   \ this comment takes out the rest of the line 
+             00 lda.d   ( this is a comment ) 
+             01 sta.d   \ this comment takes out the rest of the line 
 
 Since this is not a normal assembler, but Forth, we can put more than one instructions in one line. The convention is to leave three spaces between "blocked" instructions if they have an operand and one if not.
 
-             10 lda.z   1000 sta
-             11 lda.z   1001 sta 
+             10 lda.d   1000 sta
+             11 lda.d   1001 sta 
 
              nop nop nop nop nop 
 
@@ -242,8 +239,8 @@ To access the most significant byte of a unresolved address referenced by a
 label, we use "MSB>", for the least significant byte we use "LSB>". For example, let's say the subroutine PRTSTR prints a zero-terminated string
 with the address in $00 and $01
 
-        lsb>  truthstr lda.#   00 sta.z
-        msb>  truthstr lda.#   01 sta.z
+        lsb>  truthstr lda.#   00 sta.d
+        msb>  truthstr lda.#   01 sta.d
 
                 prtstr jsr 
                        brk 
