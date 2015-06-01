@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 31. May 2015
+\ This version: 02. June 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -19,10 +19,10 @@
 
 hex
 
-variable lc0  \ initial target address on 65816 machine TODO 24 bit?
+variable lc0  \ initial target address on 65816 machine
 
-0ffff 1+ constant maxmemory     \ 65816 has 16 bit address space TODO expand
-create staging maxmemory allot  \ buffer to store assembled machine code
+0ffffff 1+ constant maxmemory     \ 65816 has 24 bit address space
+create staging maxmemory allot    \ buffer to store assembled machine code
 staging maxmemory erase 
 
 variable bc  0 bc !  \ buffer counter, offset to start of staging area
@@ -57,11 +57,12 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 \ Save one byte in staging area
 : b,  ( c -- )  staging  bc @  +  c!  1 bc +! ; 
 
-\ Save one word in staging area, converting to little-endian
+\ Save one word (16 bit) in staging area, converting to little-endian
 : w,  ( w -- )  swapbytes b, b, ; 
 
-\ Save one long word in the staging area, converting to little-endian
-: lw, ( lw -- ) ." lw, not coded yet" ; \ HIER HIER 
+\ Save one long word (24 bit) in the staging area, converting to little-endian
+\ TODO TESTME 
+: lw, ( lw -- )  dup b,  dup 0ff00 8 rshift b,  0ff0000 10 rshift b, ; 
 
 \ Save ASCII string provided by S" instruction (S, is reserved by gforth) 
 \ Note OVER + SWAP is also BOUNDS in gforth 
@@ -230,6 +231,8 @@ create replacedummy
 \ -----------------------
 \ DEFINE OPCODES 
 
+defer a.byte   defer xy.byte 
+
 : 1byte  ( opcode -- ) ( -- ) 
    create c,
    does> c@ b, ; 
@@ -242,20 +245,23 @@ create replacedummy
    create c,
    does> c@ b, w, ; 
 
-: 4byte ( opcode -- ) ( HIER HIER ) 
+: 4byte ( opcode -- ) ( lw -- )  \ TODO TESTME 
    create c, 
-   does> c@ ( HIER )  ; 
+   does> c@ b, lw, ; 
 
 
-\ caclulate branch
+\ caclulate short branch  \ TODO establish as short branch
 : makebranch ( w -- u ) 
    lc -  1-
    dup branchable? if 
       b, else
       drop ." Error: Branch out of range" then ; 
 
+\ TODO add longbranch 
+
+
 \ handel backward branch instructions 
-\ Note BRANCH is reserved for Forth
+\ note BRANCH is reserved for Forth
 : twig  ( opcode -- )  ( w -- ) 
    create c,
    does> c@ b, makebranch ; 
@@ -266,10 +272,25 @@ create replacedummy
    does> c@ b, b, makebranch ; 
    
 
+\ cope with different register sizes of the 65816
+: A->8 ( -- )  ['] 2byte is a.byte ; \ TODO store RES/SEP COMMANDS 
+: A->16 ( -- )  ['] 3byte is a.byte ; \ TODO store RES/SEP COMMANDS 
+: XY->8 ( -- ) ['] 2byte is xy.byte ; \ TODO store RES/SEP COMMANDS 
+: XY->16 ( -- ) ['] 3byte is xy.byte ; \ TODO store RES/SEP COMMANDS 
+
+: AXY->8 ( -- ) \ TODO store RES/SEP COMMANDS 
+   ['] 2byte is a.byte   ['] 2byte is xy.byte ; 
+
+: AXY->16 ( -- ) \ TODO store RES/SEP COMMANDS 
+   ['] 3byte is xy.byte   ['] 3byte is a.byte ; 
+
+
 \ -----------------------
 \ OPCODE TABLES 
 \ Brute force listing of each possible opcode. Leave undefined entries
 \ empty so it is easier to port this program to other processors
+
+\ TODO modify opcodes for the 65816
 
 \ OPCODES 00 - 0F 
 00 1byte brk       01 2byte ora.dxi   02 2byte cop       03 2byte ora.s
