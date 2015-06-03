@@ -1,7 +1,7 @@
 Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 01. June 2015 
+This version: 04. June 2015 
 
 
 TL;DR
@@ -15,7 +15,7 @@ This is a cross-assembler for the 65816 8/16-bit hybrid MPU.
   - it has a simple, brute-force structure that should make it easy to port
     to other processors
 
-We don't care about stuff like memory footprints or speed because the assembler runs on normal PCs. 
+We don't care about stuff like memory footprints or speed because the assembler runs on normal PCs. To get it running, you'll need to start gforth with extra memory.
 
 
 SERIOUSLY, WHY?
@@ -249,9 +249,14 @@ with the address in $00 and $01
 
 Note we use a variant of STR, here that automatically adds the terminating zero.
 
+
 CALLING THE ASSEMBLER
 
-Start gforth. Then, INCLUDE the assembler: 
+Start gforth with extra memory, something like 
+
+        gforth -m 1G 
+
+Then, INCLUDE the assembler: 
 
         include tasm65816.fs
 
