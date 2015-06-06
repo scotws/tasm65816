@@ -2,14 +2,15 @@
 \ A Typist's 65816 Assembler in Forth
 \ Scot W. Stevenson <scot.stevenson@gmail.com>
 \ First version: 31. May 2015
-\ This version: 31. May 2015
+\ This version: 06. Jun 2015
 
 \ Remember this is assembler source file is actually a Forth programm listing
 \ as far as Forth is concerned. As such, the file type should be .fs instead
 \ of .asm if you want correct syntax highlighting with an editor such as vi
 
-\ To test assembly: Start gforth, then INCLUDE tasm65816.fs, INCLUDE example.fs
-\ However, do not try to run the resulting code, which contains infinite loops!
+\ To test assembly: Start gforth with "-m 1G" parameter, then 
+\ INCLUDE tasm65816.fs, INCLUDE example.fs  However, do not try to run the 
+\ resulting code, which contains infinite loops!
 
         \ we can use all the normal Forth commands; HEX should actually be 
         \ redundant
@@ -21,7 +22,12 @@
         \ .origin sets target address on 65816 machine. This is REQUIRED. 
         \ use leading zeros with hex numbers to make double sure they are 
         \ not interpreted as words by Forth 
-        00c000 origin
+        0c000 origin
+
+        \ The assembler starts out with the assumption that the processor is
+        \ in emulated mode like after a reset. To be sure, we can include
+        \ the mode sequence
+        emulation mode 
 
         \ because this is actually a Forth file, we can put more than one 
         \ instruction in a row. See MANUAL.txt for spacing conventions
@@ -49,6 +55,9 @@
 
         \ store words in correct little-endian format with W,
         1122 w, 3344 w,    \ results in 22 11 44 33
+
+        \ store those 24-bit words in correct little-end format with LW,
+        556677 lw,         \ results in 77 66 55
 
         \ store strings with a combination of S" and STR, (S, is reserved 
         \ by gforth). There are also words to store strings zero-terminated
@@ -105,11 +114,22 @@
         \ links as above
         -> frog
              0ff lda.# 
-              00 sta.z 
+              00 sta.d 
             frog bra
 
+        \ ready for the big times? Then lets switch to 16-bit mode
+        native mode  a->16  xy->16 
+
+        \ let's make sure that really worked 
+        : a16assert ( -- ) a=16? if  cr ." Yes, A is 16 bits" cr then ; 
+        a16assert
+
+        \ now our LDA commands are bigger
+           0aabb lda.# 
+            1000 sta
+
         \ well, enough of this 
-                 brk 
+                 stp
 
         \ more comments printed to the screen
         .( all done.) cr 

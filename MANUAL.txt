@@ -1,7 +1,7 @@
 Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 04. June 2015 
+This version: 06. June 2015 
 
 
 TL;DR
@@ -79,7 +79,7 @@ Where Forth words conflict with the opcodes, we add a dot to the opcode, but lea
 
     AND $1000     becomes       1000 and. 
 
-A small example: 
+An example: 
 
               LDA #$00                        00 lda.#
               TAX                                tax
@@ -87,6 +87,19 @@ A small example:
               STA $1000,x                   1000 sta.x
               DEX                                dex
               BNE loop1                    loop1 bne
+
+
+
+OPCODE SYNONYMS
+
+        BRL     brl     bra.l 
+        JML     jml     jmp.l 
+        JSL     jsl     jsr.l
+        PEA     pea     phe.#
+        PEI     pei     phe.di
+        PER     per     phe.r
+        RTL     rtl     rts.l 
+
 
 
 Included in this package are two larger example files: 
@@ -122,24 +135,33 @@ ASSEMBLER COMMANDS
 
 For quick typing, all commands are lower case, but will be listed here in upper case for quicker reference. In keeping with Forth conventions, assembler commands are not prefixed with with a dot -- in Forth, these are words that print something to the screen. 
 
-    ORIGIN ( 65addr -- ) Tells the assembler where to start compilation in the 65816 
-64k 16-bit address space of one bank. This word is required. 
+    ORIGIN ( 65addr -- ) Tells the assembler where to start compilation in the 65816 64k 16-bit address space of a bank (not a 24-bit complete address). This word is required. 
 
-    NATIVE ( -- ) Switch to native (16-bit) mode. Encodes the CLC XCE sequence.  
+    EMULATION MODE ( -- ) Switch to emulated (8-bit) mode. Encodes the SEC XCE sequence (among other things). Note the assembler starts off with the assumption taht we are in this mode. 
 
-    EMULATED ( -- ) Switch to emulated (8-bit) mode. Encodes the SEC XCE sequence (among other things). 
+    NATIVE MODE ( -- ) Switch to native (16-bit) mode. Encodes the CLC XCE sequence (among other things).  
 
-    A->8 ( -- ) Switch Accumulator to 8-bit mode. Encodes the SEP $10 sequence CHECK. See below for discussion. 
+    MODE? ( -- f ) Return flag showing the mode the assembler thinks it is in. Emulation mode returns "true", native mode "false". 
 
-    A->16 ( -- ) Switch Accumulator to 16-bit mode. Encodes the REP $10 sequence CHECK. See below for discussion. 
+    A->8 ( -- ) Switch Accumulator to 8-bit mode. Encodes the SEP $20 sequence. 
 
-    XY->8 ( -- ) Switch X and Y to 8-bit mode. Encodes the SEP $20 sequence CHECK. See below for discussion. 
+    A->16 ( -- ) Switch Accumulator to 16-bit mode. Encodes the REP $20 sequence. Note that the assembler will happily let you try to switch to 16-bits even if you are in emulated mode. 
 
-    XY->16 ( -- ) Swtich X and Y to 16-bit mode. Encodes the REP $20 sequence CHECK. See below for discussion.
+    XY->8 ( -- ) Switch X and Y to 8-bit mode. Encodes the SEP $10 sequence. 
 
-    AXY->8 ( -- ) Switch A, X, and Y to 8-bit mode. Encodes the SEP $30 sequence CHECK. See below for discussion. 
+    XY->16 ( -- ) Swtich X and Y to 16-bit mode. Encodes the REP $10 sequence.
 
-    AXY->16 ( -- ) Swtich A, X and Y to 16-bit mode. Encodes the REP $30 sequence CHECK. See below for discussion.
+    AXY->8 ( -- ) Switch A, X, and Y to 8-bit mode. Encodes the SEP $30 sequence.
+
+    AXY->16 ( -- ) Switch A, X and Y to 16-bit mode. Encodes the REP $30 sequence. 
+
+    A=8? ( -- f ) Check if Accumulator is in 8-bit mode. This instruction and its variants below are provided to allow assertation of the mode we think should be active. 
+
+    A=16? ( -- f ) Check if Accumulator is in 16-bit mode. 
+
+    XY=8? ( -- f ) Check if X and Y registers are in 8-bit mode. 
+
+    XY=16? ( -- f ) Check if X and Y registers are in 16-bit mode. 
 
     B, ( u -- ) Store one byte in memory. Note this can be use with Forth LOOPs etc.
 
@@ -173,7 +195,21 @@ We don't need a ".EQU" command -- just use the VALUE built-in Forth command.
 
 MODE SWITCHES 
 
-The 65816 is a hybrid processor that has an "emulated" mode, where it pretends to be an 8-bit 6502, and a "native" mode, where the A, X, and Y registers can be switched to 16 bits. You can do this by hand with instructions such as "10 REP" or "20 SEP". However, the assembler itself needs to know what mode the processor is so it can decide if, say, A9 10 00 should be interpreted as 8-bit instruction sequence 
+The 65816 is a hybrid processor that has an "emulation" mode, where it pretends to be an 8-bit 6502, and a "native" mode, where the A, X, and Y registers can be switched to 16 bits. We start off in emulation mode. To switch modes, use the commands
+
+        EMULATION MODE
+or
+        NATIVE MODE
+
+These encode the SEC XCE and CLC XCE sequences respectively. You could code these instructions by hand, however, using these built-in commands lets the assembler know which mode it is supposed to be in. 
+
+There is a similiar situation with the size of the Accumulator and X and Y registers. Again, you can code these instuctions by hand with 
+
+        10 rep
+or
+        20 sep
+
+However, you should not do that, because the assembler needs to know what mode the processor is so it can decide if, say, A9 10 00 should be interpreted as 8-bit instruction sequence 
 
         10 lda.# 
            brk 
@@ -182,11 +218,11 @@ or the 16-bit variant
 
       0010 lda.#  
         
-The normal WDC assembler format uses the pseudo-commands LONGA ON/OFF and LONGI ON/OFF to tell this to the assembler. Note these commands do not generate any code. The Typist's Assembler uses the commands
+The normal WDC assembler format uses the pseudo-commands LONGA ON/OFF and LONGI ON/OFF to tell this to the assembler. These commands do not generate any code. The Typist's Assembler uses the commands
 
     A->8   A->16   XY->8   XY->16   AXY->8   AXY->16
 
-that not only encode the REP and SEP sequences, but also make sure that the correct number of operands are assigned to the hybrid opcodes. Therefore, it is very important that mode switches are performed by using those commands and not directly with REP and SEP (unless you really, really know what you are doing). 
+that not only encode the REP and SEP sequences, but also make sure that the correct number of operands are assigned to the hybrid opcodes. Therefore, again, it is very important that mode switches are performed by using those commands and not directly with REP and SEP (unless you really, really know what you are doing). 
 
 Compare the example from the WDC manual on page 92 to our version: 
 

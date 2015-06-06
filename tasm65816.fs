@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 04. June 2015
+\ This version: 06. June 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -48,8 +48,9 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
    8 lshift  0ff00 and  or 
    0ffff and ;           \ paranoid 
 
-: branchable? ( n -- f ) \ make sure branch offset is the right size
-   -80 7f within ;
+\ make sure branch offset is the right size
+: short-branchable? ( n -- f )  -80 7f within ;
+: long-branchable?  ( n -- f )  -8000 7fff within ; \ TODO TESTME
 
 \ Calculate location counter from target address and buffer offset
 : lc  ( -- )  lc0 @  bc @  + ; 
@@ -61,8 +62,8 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 : w,  ( w -- )  swapbytes b, b, ; 
 
 \ Save one long word (24 bit) in the staging area, converting to little-endian
-\ TODO TESTME 
-: lw, ( lw -- )  dup b,  dup 0ff00 8 rshift b,  0ff0000 10 rshift b, ; 
+: lw, ( lw -- )  dup b,  dup 0ff00 and  8 rshift b,  
+                 0ff0000 and  10 rshift b, ; 
 
 \ Save ASCII string provided by S" instruction (S, is reserved by gforth) 
 \ Note OVER + SWAP is also BOUNDS in gforth 
@@ -73,6 +74,7 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 
 \ Save linefeed-terminated  ASCII string provided by S" instruction
 : strlf, ( addr u -- ) str, 0a b, ; 
+
 
 \ -----------------------
 \ HIGH LEVEL ASSEMBLER INSTRUCTIONS
@@ -95,6 +97,7 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
    parse-name w/o create-file
    drop write-file if 
       ." Error writing file" then ; 
+
 
 \ -----------------------
 \ LABELS 
@@ -125,7 +128,7 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
    dup staging +     ( b-off addr ) 
    bc @              ( b-off addr bc ) 
    rot -  1-         ( addr 65off ) 
-   dup branchable? invert if
+   dup short-branchable? invert if
       cr ." Offset out of branching range (" . ." )" then 
    swap c! ; 
 
@@ -250,10 +253,10 @@ defer a.byte   defer xy.byte
    does> c@ b, lw, ; 
 
 
-\ caclulate short branch  \ TODO establish as short branch
-: makebranch ( w -- u ) 
+\ caclulate short branch  
+: makeshortbranch ( w -- u ) 
    lc -  1-
-   dup branchable? if 
+   dup short-branchable? if 
       b, else
       drop ." Error: Branch out of range" then ; 
 
@@ -264,25 +267,54 @@ defer a.byte   defer xy.byte
 \ note BRANCH is reserved for Forth
 : twig  ( opcode -- )  ( w -- ) 
    create c,
-   does> c@ b, makebranch ; 
+   does> c@ b, makeshortbranch ; 
 
 \ handle BBR/BBS instructions 
 : testbranch ( opcode -- ) ( w u -- ) 
    create c,
-   does> c@ b, b, makebranch ; 
+   does> c@ b, b, makeshortbranch ; 
    
 
-\ cope with different register sizes of the 65816
-: A->8 ( -- )  ['] 2byte is a.byte ; \ TODO store RES/SEP COMMANDS 
-: A->16 ( -- )  ['] 3byte is a.byte ; \ TODO store RES/SEP COMMANDS 
-: XY->8 ( -- ) ['] 2byte is xy.byte ; \ TODO store RES/SEP COMMANDS 
-: XY->16 ( -- ) ['] 3byte is xy.byte ; \ TODO store RES/SEP COMMANDS 
+\ -----------------------
+\ HANDLE REGISTER SIZE STUFF
 
-: AXY->8 ( -- ) \ TODO store RES/SEP COMMANDS 
-   ['] 2byte is a.byte   ['] 2byte is xy.byte ; 
+variable e-flag   \ native (0) or emulation (1) CPU mode
+variable m-flag   \ 16-bit (0) or 8-bit (1) A register
+variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 
-: AXY->16 ( -- ) \ TODO store RES/SEP COMMANDS 
-   ['] 3byte is xy.byte   ['] 3byte is a.byte ; 
+\ switch emulation/native mode, requires combined command ("emulation mode")
+\ use these commands instead of coding the instructions directly
+: emulation ( -- )  true e-flag !  38 b, ;  \ CLC 
+: native ( -- )  false e-flag !  18 b, ;  \ SEC 
+: mode ( -- )  0fb b, ; 
+
+\ Switching to 8 bit with SEP instruction
+\ use these commands instead of coding the instructions directly
+: a->8 ( -- )  
+   ['] 2byte is a.byte   true m-flag !   0e2 b, 20 b, ;
+: xy->8 ( -- )  
+   ['] 2byte is xy.byte   true x-flag !   0e2 b, 10 b, ;
+: axy->8 ( -- )  ['] 2byte is a.byte   ['] 2byte is xy.byte 
+   true m-flag !   true x-flag !   0e2 b, 30 b, ;  
+
+\ Switching to 16 bit with REP instruction
+\ use these commands instead of coding the instructions directly
+: a->16 ( -- )  
+   ['] 3byte is a.byte   false m-flag !   0c2 b, 20 b, ;
+: xy->16 ( -- ) 
+   ['] 3byte is xy.byte   false x-flag !   0c2 b, 10 b, ;
+: axy->16 ( -- )  ['] 3byte is xy.byte   ['] 3byte is a.byte
+   false m-flag !   false x-flag !   0c2 b, 30 b, ;
+
+\ make things easier for the poor humans and make asserting easier
+: a=8?  ( -- f )  m-flag @  ; 
+: a=16?  ( -- f )  m-flag @  invert ; 
+: xy=8?  ( -- f )  x-flag @  ; 
+: xy=16?  ( -- f )  x-flag @  invert ; 
+: mode?  ( -- f ) e-flag @ ; \ true means "emulated", false means "native"
+
+\ start assembler in emulation mode
+emulation mode  a->8  xy->8 
 
 
 \ -----------------------
@@ -290,9 +322,12 @@ defer a.byte   defer xy.byte
 \ Brute force listing of each possible opcode. Leave undefined entries
 \ empty so it is easier to port this program to other processors
 
+\ TODO Hybrid 8/16-bit instructions need to be DEFERED directly, 
+\ as these are defintions.
+
 
 \ OPCODES 00 - 0F 
-00 1byte brk       01 2byte ora.dxi   02 2byte cop       03 2byte ora.s
+00 2byte brk       01 2byte ora.dxi   02 2byte cop       03 2byte ora.s
 04 2byte tsb.d     05 2byte ora.d     06 2byte asl.d     07 2byte ora.dil
 08 1byte php       09 2byte ora.#     0a 1byte asl.a     0b 1byte phd
 0c 3byte tsb       0d 3byte ora       0e 3byte asl       0f 4byte ora.l
@@ -315,7 +350,7 @@ defer a.byte   defer xy.byte
 38 1byte sec       39 3byte and.y     3a 1byte dec.a     3b 1byte tsc
 3c 3byte bit.x     3d 3byte and.x     3e 3byte rol.x     3f testbranch bbr3
 
-\ OPCODES 40 - 4F 
+
 40 1byte rti       41 2byte eor.dxi   42 1byte wdm       43 2byte eor.s
 44 3byte mvp       45 2byte eor.d     46 2byte lsr.d     47 2byte eor.dil
 48 1byte pha       49 2byte eor.#     4a 1byte lsr.a     4b 1byte phk
@@ -354,7 +389,7 @@ defer a.byte   defer xy.byte
 \ OPCODES A0 - AF 
 0a0 2byte ldy.#   0a1 2byte lda.dxi  0a2 2byte ldx.#    0a3 2byte lda.s
 0a4 2byte ldy.d   0a5 2byte lda.d    0a6 2byte ldx.d    0a7 2byte lda.dil
-0a8 1byte tay     0a9 2byte lda.#    0aa 1byte tax      0ab 1byte plb
+0a8 1byte tay     0a9 a.byte lda.#   0aa 1byte tax      0ab 1byte plb
 0ac 3byte ldy     0ad 3byte lda      0ae 3byte ldx      0af 4byte lda.l
 
 \ OPCODES B0 - BF 

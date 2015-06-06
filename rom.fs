@@ -2,11 +2,11 @@
 \ A Typist's 65816 Assembler in Forth
 \ Scot W. Stevenson <scot.stevenson@gmail.com>
 \ First version: 31. May 2015
-\ This version: 31. May 2015
+\ This version: 06. Jun 2015
 
 \ After assembly, this creates an 8 kb binary file that can be 
-\ loaded to $E000 a simulator such as the py65mon for testing 
-\ You can use this as template for your own system
+\ loaded to $E000 a simulator such as the crude65816 which
+\ you can use this as template for your own system
 
 \ This program is distributed in the hope that it will be useful,
 \ but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -38,11 +38,12 @@
 \ These, too, should go before the main code if at all possible
 
    \ Print a zero-terminated string. Assumes address in $00, $01
+   \ Assumes A and Y are in 8-bit mode
    -> prtstr
                   phy 
                00 ldy.#
    -> nxtchr
-               00 lda.ziy
+               00 lda.diy
          b>  fini beq
            putchr sta
                   iny
@@ -58,14 +59,18 @@
 \ much hassle
 
    \ Macro to print one linefeed
+   \ Assumes A in 8-bit mode
    : .linefeed  ( -- )   0a lda.#   putchr sta ; 
 
    \ Macro to print a string. Note this doesn't work with strings
    \ that were defined lower down because it gets tricky with
    \ unresolved links. Gforth already uses .STRING 
+   \ Assumes A is in 8-bit mode
    : .str ( link -- ) 
-      dup lsb  lda.#   00 sta.z
-          msb  lda.#   01 sta.z
+      dup  lsb lda.#   
+            00 sta.d
+           msb lda.#   
+            01 sta.d
         prtstr jsr ; 
 
 
@@ -74,8 +79,11 @@
    \ All of our vectors go here because we're cheap 
    -> vectors 
 
+   \ Make sure we're in the right mode after the vector jump
+   emulation mode  a->8  xy->8 
+
    \ Print the intro string
-   intro .str  .linefeed 
+   intro .str   .linefeed 
 
    \ Print 10 x 'a' so we have at least one loop
 
@@ -87,7 +95,7 @@
              nxta bne
 
    \ done with all of this 
-                  brk 
+                  stp 
 
 
 \ --- INTERRUPT VECTORS --- 
