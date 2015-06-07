@@ -1,7 +1,7 @@
 Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 06. June 2015 
+This version: 07. June 2015 
 
 
 TL;DR
@@ -143,17 +143,17 @@ For quick typing, all commands are lower case, but will be listed here in upper 
 
     MODE? ( -- f ) Return flag showing the mode the assembler thinks it is in. Emulation mode returns "true", native mode "false". 
 
-    A->8 ( -- ) Switch Accumulator to 8-bit mode. Encodes the SEP $20 sequence. 
+    A:8 ( -- ) Switch Accumulator to 8-bit mode. Encodes the SEP $20 sequence. Note that we use a colon in this command because shorter forms such as A8 would run the risk of being interpreted as a hex number. 
 
-    A->16 ( -- ) Switch Accumulator to 16-bit mode. Encodes the REP $20 sequence. Note that the assembler will happily let you try to switch to 16-bits even if you are in emulated mode. 
+    A:16 ( -- ) Switch Accumulator to 16-bit mode. Encodes the REP $20 sequence. Note that the assembler will happily let you try to switch to 16-bits even if you are in emulated mode. 
 
-    XY->8 ( -- ) Switch X and Y to 8-bit mode. Encodes the SEP $10 sequence. 
+    XY:8 ( -- ) Switch X and Y to 8-bit mode. Encodes the SEP $10 sequence. 
 
-    XY->16 ( -- ) Swtich X and Y to 16-bit mode. Encodes the REP $10 sequence.
+    XY:16 ( -- ) Swtich X and Y to 16-bit mode. Encodes the REP $10 sequence.
 
-    AXY->8 ( -- ) Switch A, X, and Y to 8-bit mode. Encodes the SEP $30 sequence.
+    AXY:8 ( -- ) Switch A, X, and Y to 8-bit mode. Encodes the SEP $30 sequence.
 
-    AXY->16 ( -- ) Switch A, X and Y to 16-bit mode. Encodes the REP $30 sequence. 
+    AXY:16 ( -- ) Switch A, X and Y to 16-bit mode. Encodes the REP $30 sequence. 
 
     A=8? ( -- f ) Check if Accumulator is in 8-bit mode. This instruction and its variants below are provided to allow assertation of the mode we think should be active. 
 
@@ -220,7 +220,7 @@ or the 16-bit variant
         
 The normal WDC assembler format uses the pseudo-commands LONGA ON/OFF and LONGI ON/OFF to tell this to the assembler. These commands do not generate any code. The Typist's Assembler uses the commands
 
-    A->8   A->16   XY->8   XY->16   AXY->8   AXY->16
+    A:8   A:16   XY:8   XY:16   AXY:8   AXY:16
 
 that not only encode the REP and SEP sequences, but also make sure that the correct number of operands are assigned to the hybrid opcodes. Therefore, again, it is very important that mode switches are performed by using those commands and not directly with REP and SEP (unless you really, really know what you are doing). 
 
@@ -228,7 +228,7 @@ Compare the example from the WDC manual on page 92 to our version:
 
       MACHINE CODE      WDC ASSEMBLER           TYPIST'S ASSEMBLER
 
-         E2 20          SEP #$00100000               A->8
+         E2 20          SEP #$00100000               a:8 
                         LONGA OFF               
          A9 3F          LDA #$3F                  3F lda.# 
       8D 00 B1          STA $B100               B100 sta 

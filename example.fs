@@ -2,7 +2,7 @@
 \ A Typist's 65816 Assembler in Forth
 \ Scot W. Stevenson <scot.stevenson@gmail.com>
 \ First version: 31. May 2015
-\ This version: 06. Jun 2015
+\ This version: 07. Jun 2015
 
 \ Remember this is assembler source file is actually a Forth programm listing
 \ as far as Forth is concerned. As such, the file type should be .fs instead
@@ -118,7 +118,7 @@
             frog bra
 
         \ ready for the big times? Then lets switch to 16-bit mode
-        native mode  a->16  xy->16 
+        native mode  a:16 xy:16 
 
         \ let's make sure that really worked 
         : a16assert ( -- ) a=16? if  cr ." Yes, A is 16 bits" cr then ; 

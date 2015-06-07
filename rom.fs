@@ -80,7 +80,7 @@
    -> vectors 
 
    \ Make sure we're in the right mode after the vector jump
-   emulation mode  a->8  xy->8 
+   emulation mode  a:8  xy:8 
 
    \ Print the intro string
    intro .str   .linefeed 
