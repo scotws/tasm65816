@@ -2,7 +2,7 @@
 \ A Typist's 65816 Assembler in Forth
 \ Scot W. Stevenson <scot.stevenson@gmail.com>
 \ First version: 31. May 2015
-\ This version: 06. Jun 2015
+\ This version: 07. Jun 2015
 
 \ After assembly, this creates an 8 kb binary file that can be 
 \ loaded to $E000 a simulator such as the crude65816 which
@@ -80,12 +80,13 @@
    -> vectors 
 
    \ Make sure we're in the right mode after the vector jump
+   \ because who knows where we came from 
    emulation mode  a:8  xy:8 
 
    \ Print the intro string
    intro .str   .linefeed 
 
-   \ Print 10 x 'a' so we have at least one loop
+   \ Print a bunch of 'a' so we have at least one loop
 
                09 ldy.# 
            char a lda.#      

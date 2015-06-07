@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 06. June 2015
+\ This version: 07. June 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -79,7 +79,8 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 \ -----------------------
 \ HIGH LEVEL ASSEMBLER INSTRUCTIONS
 
-\ set intial target address on 65816 machine
+\ set intial target address on 65816 machine. This command is 
+\ required in the source code
 : origin ( 65addr -- )  lc0 ! ; 
 
 \ move to a given address, filling the space inbetween with zeros
@@ -90,6 +91,7 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
    lc0 @ -  bc ! ;
 
 \ mark end of assembler source text, return buffer location and size
+\ This command is required in the source text
 : end  ( -- addr u )  staging  bc @ ; 
 
 \ save assembled program to file, overwriting any file with same name
@@ -290,20 +292,20 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 
 \ Switching to 8 bit with SEP instruction
 \ use these commands instead of coding the instructions directly
-: a->8 ( -- )  
+: a:8 ( -- )  
    ['] 2byte is a.byte   true m-flag !   0e2 b, 20 b, ;
-: xy->8 ( -- )  
+: xy:8 ( -- )  
    ['] 2byte is xy.byte   true x-flag !   0e2 b, 10 b, ;
-: axy->8 ( -- )  ['] 2byte is a.byte   ['] 2byte is xy.byte 
+: axy:8 ( -- )  ['] 2byte is a.byte   ['] 2byte is xy.byte 
    true m-flag !   true x-flag !   0e2 b, 30 b, ;  
 
 \ Switching to 16 bit with REP instruction
 \ use these commands instead of coding the instructions directly
-: a->16 ( -- )  
+: a:16 ( -- )  
    ['] 3byte is a.byte   false m-flag !   0c2 b, 20 b, ;
-: xy->16 ( -- ) 
+: xy:16 ( -- ) 
    ['] 3byte is xy.byte   false x-flag !   0c2 b, 10 b, ;
-: axy->16 ( -- )  ['] 3byte is xy.byte   ['] 3byte is a.byte
+: axy:16 ( -- )  ['] 3byte is xy.byte   ['] 3byte is a.byte
    false m-flag !   false x-flag !   0c2 b, 30 b, ;
 
 \ make things easier for the poor humans and make asserting easier
@@ -314,7 +316,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 : mode?  ( -- f ) e-flag @ ; \ true means "emulated", false means "native"
 
 \ start assembler in emulation mode
-emulation mode  a->8  xy->8 
+emulation mode  a:8  xy:8 
 
 
 \ -----------------------
