@@ -1,12 +1,12 @@
 Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 07. June 2015 
+This version: 10. June 2015 
 
 
 TL;DR
 
-This is a cross-assembler for the 65816 8/16-bit hybrid MPU. 
+This is a cross-assembler for the 65816 8/16-bit hybrid CPU. 
 
   - it is written in modern ANSI-orientated Forth (gforth 0.7).
   - its syntax ("Typist's Assembler Format") is optimized for ten-finger
@@ -92,15 +92,24 @@ An example:
 
 OPCODE SYNONYMS
 
-        BRL     brl     bra.l 
-        JML     jml     jmp.l 
-        JSL     jsl     jsr.l
-        PEA     pea     phe.#
-        PEI     pei     phe.di
-        PER     per     phe.r
-        RTL     rtl     rts.l 
+The Typist's Assembler follows a naming system for opcodes that differs from the normal WDC versions. However, since lots of people are use to the offical version, we provide synonyms: 
+
+        WDC             Systematic      Synonym
+        Code            version 
+
+        BRL             bra.l           brl
+        JML             jmp.l           jml
+        JSL             jsr.l           jsl
+        PEA             phe.#           pea
+        PEI             phe.di          pei
+        PER             phe.r           per
+        RTL             rts.l           rtl
+
+The use of the systematic names is encouraged. 
 
 
+
+EXAMPLES
 
 Included in this package are two larger example files: 
 
