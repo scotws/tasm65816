@@ -403,18 +403,18 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 \ We have twelve instructions that need to be handled separately
 \ depending on the size of the Accumulator and/or X/Y Registers
 
- 09 2byte ora.#8     09 3byte ora.#16   defer ora.# 
- 29 2byte and.#8     29 3byte and.#16   defer and.# 
- 49 2byte eor.#8     49 3byte eor.#16   defer eor.# 
- 69 2byte adc.#8     69 3byte adc.#16   defer adc.# 
- 89 2byte bit.#8     89 3byte bit.#16   defer bit.# 
-0a0 2byte ldy.#8    0a0 3byte ldy.#16   defer ldy.# 
-0a2 2byte ldx.#8    0a2 3byte ldx.#16   defer ldx.# 
-0a9 2byte lda.#8    0a9 3byte lda.#16   defer lda.# 
-0c0 2byte cpy.#8    0c0 3byte cpy.#16   defer cpy.# 
-0c9 2byte cmp.#8    0c9 3byte cmp.#16   defer cmp.# 
-0e0 2byte cpx.#8    0e0 3byte cpx.#16   defer cpx.# 
-0e9 2byte sbc.#8    0e9 3byte sbc.#16   defer sbc.# 
+ 09 2byte ora.#8     09 3byte ora.#16    defer ora.# 
+ 29 2byte and.#8     29 3byte and.#16    defer and.# 
+ 49 2byte eor.#8     49 3byte eor.#16    defer eor.# 
+ 69 2byte adc.#8     69 3byte adc.#16    defer adc.# 
+ 89 2byte bit.#8     89 3byte bit.#16    defer bit.# 
+0a0 2byte ldy.#8    0a0 3byte ldy.#16    defer ldy.# 
+0a2 2byte ldx.#8    0a2 3byte ldx.#16    defer ldx.# 
+0a9 2byte lda.#8    0a9 3byte lda.#16    defer lda.# 
+0c0 2byte cpy.#8    0c0 3byte cpy.#16    defer cpy.# 
+0c9 2byte cmp.#8    0c9 3byte cmp.#16    defer cmp.# 
+0e0 2byte cpx.#8    0e0 3byte cpx.#16    defer cpx.# 
+0e9 2byte sbc.#8    0e9 3byte sbc.#16    defer sbc.# 
 
 : a8defines ( -- )  true m-flag ! 
    ['] ora.#8 is ora.#  ['] and.#8 is and.#  
@@ -465,6 +465,6 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 
 \ start assembler in emulation mode. Don't use a:8 and xy:8 here
 \ because we don't want to save any bytes to the staging area yet 
-emulation mode  axy8defines
+true e-flag !  axy8defines
 
 \ END

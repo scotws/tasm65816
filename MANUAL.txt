@@ -1,7 +1,7 @@
 Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 10. June 2015 
+This version: 11. June 2015 
 
 
 TL;DR
@@ -18,7 +18,7 @@ This is a cross-assembler for the 65816 8/16-bit hybrid CPU.
 We don't care about stuff like memory footprints or speed because the assembler runs on normal PCs. To get it running, you'll need to start gforth with extra memory.
 
 
-SERIOUSLY, WHY?
+SERIOUSLY, DUDE, WHY?
 
 Forth is a fantastic language to write assemblers in - 
 
@@ -32,7 +32,7 @@ Anyway -- people kept telling me Forth was a fantastic language to write assembl
 
 HASN'T THAT BEEN DONE BEFORE?
 
-Actually, not really. Though there are lots of great assemblers for the 6502/65c02 out there -- see http://www.6502.org/tools/ for a list -- there are very few for the 65816. Those were not an option, though, because I never liked the standard assembler syntax for the 6502, and I certainly don't like the version for the new modes of the 65816 with the square brackets and what not. As with the first assembler, I was aiming for something that would work well for a ten-finger typist. 
+Actually, no. Though there are lots of great assemblers for the 6502/65c02 out there -- see http://www.6502.org/tools/ for a list -- there are very few for the 65816. Those were not an option, though, because I never liked the standard assembler syntax for the 6502, and I certainly don't like the version for the new modes of the 65816 with the square brackets and what not. As with the first assembler, I was aiming for something that would work well for a ten-finger typist. 
 
 
 SO LET'S SEE THIS NEW SYNTAX OF YOURS
@@ -210,7 +210,7 @@ The 65816 is a hybrid processor that has an "emulation" mode, where it pretends 
 or
         NATIVE MODE
 
-These encode the SEC XCE and CLC XCE sequences respectively. You could code these instructions by hand, however, using these built-in commands lets the assembler know which mode it is supposed to be in. 
+These encode the SEC XCE and CLC XCE sequences respectively. You could code these instructions by hand. However, using these built-in commands lets the assembler know which mode it is supposed to be in. 
 
 There is a similiar situation with the size of the Accumulator and X and Y registers. Again, you can code these instuctions by hand with 
 
@@ -235,14 +235,14 @@ that not only encode the REP and SEP sequences, but also make sure that the corr
 
 Compare the example from the WDC manual on page 92 to our version: 
 
-      MACHINE CODE      WDC ASSEMBLER           TYPIST'S ASSEMBLER
+      MACHINE CODE      WDC ASSEMBLER        TYPIST'S ASSEMBLER
 
-         E2 20          SEP #$00100000               a:8 
+         E2 20          SEP #$00100000            a:8 
                         LONGA OFF               
-         A9 3F          LDA #$3F                  3F lda.# 
-      8D 00 B1          STA $B100               B100 sta 
+         A9 3F          LDA #$3F               3f lda.# 
+      8D 00 B1          STA $B100            b100 sta 
 
-Note the A->8 command automatically takes care of the SEP instruction for us, and also includes the function of the LONGA OFF sequence. It might seem to be violating the lower-case rule by using capital letters here, but it turns out these commands are easier to distinguish as pseudo-commands with captial letters. 
+Note the A:8 command automatically takes care of the SEP instruction for us, and also includes the function of the LONGA OFF sequence. 
 
 
 
