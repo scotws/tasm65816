@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 07. June 2015
+\ This version: 11. June 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -236,8 +236,6 @@ create replacedummy
 \ -----------------------
 \ DEFINE OPCODES 
 
-defer a.byte   defer xy.byte 
-
 : 1byte  ( opcode -- ) ( -- ) 
    create c,
    does> c@ b, ; 
@@ -290,24 +288,6 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 : native ( -- )  false e-flag !  18 b, ;  \ SEC 
 : mode ( -- )  0fb b, ; 
 
-\ Switching to 8 bit with SEP instruction
-\ use these commands instead of coding the instructions directly
-: a:8 ( -- )  
-   ['] 2byte is a.byte   true m-flag !   0e2 b, 20 b, ;
-: xy:8 ( -- )  
-   ['] 2byte is xy.byte   true x-flag !   0e2 b, 10 b, ;
-: axy:8 ( -- )  ['] 2byte is a.byte   ['] 2byte is xy.byte 
-   true m-flag !   true x-flag !   0e2 b, 30 b, ;  
-
-\ Switching to 16 bit with REP instruction
-\ use these commands instead of coding the instructions directly
-: a:16 ( -- )  
-   ['] 3byte is a.byte   false m-flag !   0c2 b, 20 b, ;
-: xy:16 ( -- ) 
-   ['] 3byte is xy.byte   false x-flag !   0c2 b, 10 b, ;
-: axy:16 ( -- )  ['] 3byte is xy.byte   ['] 3byte is a.byte
-   false m-flag !   false x-flag !   0c2 b, 30 b, ;
-
 \ make things easier for the poor humans and make asserting easier
 : a=8?  ( -- f )  m-flag @  ; 
 : a=16?  ( -- f )  m-flag @  invert ; 
@@ -315,23 +295,17 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 : xy=16?  ( -- f )  x-flag @  invert ; 
 : mode?  ( -- f ) e-flag @ ; \ true means "emulated", false means "native"
 
-\ start assembler in emulation mode
-emulation mode  a:8  xy:8 
-
 
 \ -----------------------
 \ OPCODE TABLES 
 \ Brute force listing of each possible opcode. Leave undefined entries
 \ empty so it is easier to port this program to other processors
 
-\ TODO Hybrid 8/16-bit instructions need to be DEFERED directly, 
-\ as these are defintions.
-
 
 \ OPCODES 00 - 0F 
 00 2byte brk       01 2byte ora.dxi   02 2byte cop       03 2byte ora.s
 04 2byte tsb.d     05 2byte ora.d     06 2byte asl.d     07 2byte ora.dil
-08 1byte php       09 2byte ora.#     0a 1byte asl.a     0b 1byte phd
+08 1byte php       ( 09 see below )   0a 1byte asl.a     0b 1byte phd
 0c 3byte tsb       0d 3byte ora       0e 3byte asl       0f 4byte ora.l
 
 \ OPCODES 10 - 1F 
@@ -343,7 +317,7 @@ emulation mode  a:8  xy:8
 \ OPCODES 20 - 2F 
 20 3byte jsr       21 2byte and.dxi   22 4byte jsr.l     23 2byte and.s
 24 2byte bit.d     25 2byte and.d     26 2byte rol.d     27 2byte and.dil
-28 1byte plp       29 2byte and.#     2a 1byte rol.a     2b 1byte pld
+28 1byte plp       ( 29 see below )   2a 1byte rol.a     2b 1byte pld
 2c 3byte bit       2d 3byte and.      2e 3byte rol       2f 4byte and.l
 
 \ OPCODES 30 - 3F 
@@ -355,7 +329,7 @@ emulation mode  a:8  xy:8
 
 40 1byte rti       41 2byte eor.dxi   42 1byte wdm       43 2byte eor.s
 44 3byte mvp       45 2byte eor.d     46 2byte lsr.d     47 2byte eor.dil
-48 1byte pha       49 2byte eor.#     4a 1byte lsr.a     4b 1byte phk
+48 1byte pha       ( 49 see below )   4a 1byte lsr.a     4b 1byte phk
 4c 3byte jmp       4d 3byte eor       4e 3byte lsr       4f 4byte eor.l
 
 \ OPCODES 50 - 5F 
@@ -367,7 +341,7 @@ emulation mode  a:8  xy:8
 \ OPCODES 60 - 6F 
 60 1byte rts       61 2byte adc.dxi   62 3byte per       63 2byte adc.s
 64 2byte stz.d     65 2byte adc.d     66 2byte ror.d     67 2byte adc.dil
-68 1byte pla       69 2byte adc.#     6a 1byte ror.a     6b 1byte rts.l
+68 1byte pla       ( 69 see below )   6a 1byte ror.a     6b 1byte rts.l
 6c 3byte jmp.i     6d 3byte adc       6e 3byte ror       6f 4byte adc.l
 
 \ OPCODES 70 - 7F 
@@ -379,7 +353,7 @@ emulation mode  a:8  xy:8
 \ OPCODES 80 - 8F 
 80 twig bra        81 2byte sta.dxi   82 3byte bra.l     83 2byte sta.s
 84 2byte sty.d     85 2byte sta.d     86 2byte stx.d     87 2byte sta.dil
-88 1byte dey       89 2byte bit.#     8a 1byte txa       8b 1byte phb
+88 1byte dey       ( 89 see below )   8a 1byte txa       8b 1byte phb
 8c 3byte sty       8d 3byte sta       8e 3byte stx       8f 4byte sta.l
 
 \ OPCODES 90 - 9F 
@@ -389,9 +363,9 @@ emulation mode  a:8  xy:8
 9c 3byte stz       9d 3byte sta.x     9e 3byte stz.x     9f 4byte sta.lx
 
 \ OPCODES A0 - AF 
-0a0 2byte ldy.#   0a1 2byte lda.dxi  0a2 2byte ldx.#    0a3 2byte lda.s
+( a0 see below )  0a1 2byte lda.dxi  ( a2 see below )   0a3 2byte lda.s
 0a4 2byte ldy.d   0a5 2byte lda.d    0a6 2byte ldx.d    0a7 2byte lda.dil
-0a8 1byte tay     0a9 a.byte lda.#   0aa 1byte tax      0ab 1byte plb
+0a8 1byte tay     ( a9 see below )   0aa 1byte tax      0ab 1byte plb
 0ac 3byte ldy     0ad 3byte lda      0ae 3byte ldx      0af 4byte lda.l
 
 \ OPCODES B0 - BF 
@@ -401,9 +375,9 @@ emulation mode  a:8  xy:8
 0bc 3byte ldy.x   0bd 3byte lda.x    0be 3byte ldx.y    0bf 4byte lda.lx
 
 \ OPCODES C0 - CF 
-0c0 2byte cpy.#   0c1 2byte cmp.dxi  0c2 1byte rep      0c3 2byte cmp.s
+( c0 see below )  0c1 2byte cmp.dxi  0c2 1byte rep      0c3 2byte cmp.s
 0c4 2byte cpy.d   0c5 2byte cmp.d    0c6 2byte dec.d    0c7 2byte cmp.dil
-0c8 1byte iny     0c9 2byte cmp.#    0ca 1byte dex      0cb 1byte wai
+0c8 1byte iny     ( c9 see below )   0ca 1byte dex      0cb 1byte wai
 0cc 3byte cpy     0cd 3byte cmp      0ce 3byte dec      0cf 4byte cmp.l
 
 \ OPCODES D0 - DF 
@@ -413,9 +387,9 @@ emulation mode  a:8  xy:8
 0dc 3byte jmp.il  0dd 3byte cmp.x    0de 3byte dec.x    0df 4byte cmp.lx
 
 \ OPCODES E0 - EF 
-0e0 2byte cpx.#   0e1 2byte sbc.dxi  0e2 2byte sep      0e3 2byte sbc.s
+( 0e0 see below ) 0e1 2byte sbc.dxi  0e2 2byte sep      0e3 2byte sbc.s
 0e4 2byte cpx.d   0e5 2byte sbc.d    0e6 2byte inc.d    0e7 2byte sbc.dil
-0e8 1byte inx     0e9 2byte sbc.#    0ea 1byte nop      0eb 1byte xba 
+0e8 1byte inx     ( 0e9 see below )  0ea 1byte nop      0eb 1byte xba 
 0ec 3byte cpx     0ed 3byte sbc      0ee 3byte inc      0ef 4byte sbc.l
 
 \ OPCODES F0 - FF 
@@ -423,5 +397,74 @@ emulation mode  a:8  xy:8
 0f4 3byte pea     0f5 2byte sbc.dx   0f6 2byte inc.dx   0f7 2byte sbc.dily
 0f8 1byte sed     0f9 3byte sbc.y    0fa 1byte plx      0fb 1byte xce
 0fc 3byte jsr.xi  0fd 3byte sbc.x    0fe 3byte inc.x    0ff 4byte sbc.lx
+
+
+\ 8/16-BIT HYBRID INSTRUCTIONS
+\ We have twelve instructions that need to be handled separately
+\ depending on the size of the Accumulator and/or X/Y Registers
+
+ 09 2byte ora.#8     09 3byte ora.#16   defer ora.# 
+ 29 2byte and.#8     29 3byte and.#16   defer and.# 
+ 49 2byte eor.#8     49 3byte eor.#16   defer eor.# 
+ 69 2byte adc.#8     69 3byte adc.#16   defer adc.# 
+ 89 2byte bit.#8     89 3byte bit.#16   defer bit.# 
+0a0 2byte ldy.#8    0a0 3byte ldy.#16   defer ldy.# 
+0a2 2byte ldx.#8    0a2 3byte ldx.#16   defer ldx.# 
+0a9 2byte lda.#8    0a9 3byte lda.#16   defer lda.# 
+0c0 2byte cpy.#8    0c0 3byte cpy.#16   defer cpy.# 
+0c9 2byte cmp.#8    0c9 3byte cmp.#16   defer cmp.# 
+0e0 2byte cpx.#8    0e0 3byte cpx.#16   defer cpx.# 
+0e9 2byte sbc.#8    0e9 3byte sbc.#16   defer sbc.# 
+
+: a8defines ( -- )  true m-flag ! 
+   ['] ora.#8 is ora.#  ['] and.#8 is and.#  
+   ['] eor.#8 is eor.#  ['] adc.#8 is adc.#  
+   ['] bit.#8 is bit.#  ['] lda.#8 is lda.#  
+   ['] cmp.#8 is cmp.#  ['] sbc.#8 is sbc.# ;    
+
+: xy8defines ( -- )  true x-flag ! 
+   ['] ldy.#8 is ldy.#  ['] ldx.#8 is ldx.# 
+   ['] cpy.#8 is cpy.#  ['] cpx.#8 is cpx.# ;
+
+: axy8defines ( -- ) true m-flag !  true x-flag ! 
+   ['] ora.#8 is ora.#  ['] and.#8 is and.#  
+   ['] eor.#8 is eor.#  ['] adc.#8 is adc.#  
+   ['] bit.#8 is bit.#  ['] lda.#8 is lda.#  
+   ['] cmp.#8 is cmp.#  ['] sbc.#8 is sbc.# 
+   ['] ldy.#8 is ldy.#  ['] ldx.#8 is ldx.# 
+   ['] cpy.#8 is cpy.#  ['] cpx.#8 is cpx.# ;  
+
+: a16defines ( -- )  false m-flag ! 
+   ['] ora.#16 is ora.#  ['] and.#16 is and.#  
+   ['] eor.#16 is eor.#  ['] adc.#16 is adc.#  
+   ['] bit.#16 is bit.#  ['] lda.#16 is lda.#  
+   ['] cmp.#16 is cmp.#  ['] sbc.#16 is sbc.# ;    
+
+: xy16defines ( -- )   false x-flag ! 
+   ['] ldy.#16 is ldy.#  ['] ldx.#16 is ldx.# 
+   ['] cpy.#16 is cpy.#  ['] cpx.#16 is cpx.# ;
+
+: axy16defines ( -- )  false m-flag !  false x-flag ! 
+   ['] ora.#16 is ora.#  ['] and.#16 is and.#  
+   ['] eor.#16 is eor.#  ['] adc.#16 is adc.#  
+   ['] bit.#16 is bit.#  ['] lda.#16 is lda.#  
+   ['] cmp.#16 is cmp.#  ['] sbc.#16 is sbc.# 
+   ['] ldy.#16 is ldy.#  ['] ldx.#16 is ldx.# 
+   ['] cpy.#16 is cpy.#  ['] cpx.#16 is cpx.# ;  
+
+
+\ Switch to 8/16 bit with SEP/REP instructions 
+\ use these commands instead of coding the instructions directly
+: a:8 ( -- )  a8defines  0e2 b, 20 b, ; \ 20 SEP 
+: xy:8 ( -- )  xy8defines  0e2 b, 10 b, ; \ 10 SEP
+: axy:8 ( -- )  axy8defines  0e2 b, 30 b, ; \ 30 SEP 
+: a:16 ( -- )  a16defines  0c2 b, 20 b, ; \ 20 REP 
+: xy:16 ( -- )  xy16defines  0c2 b, 10 b, ; \ 10 REP 
+: axy:16 ( -- )  axy16defines  0c2 b, 30 b, ; \ 30 REP 
+
+
+\ start assembler in emulation mode. Don't use a:8 and xy:8 here
+\ because we don't want to save any bytes to the staging area yet 
+emulation mode  axy8defines
 
 \ END
