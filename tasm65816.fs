@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 11. June 2015
+\ This version: 12. June 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -426,13 +426,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
    ['] ldy.#8 is ldy.#  ['] ldx.#8 is ldx.# 
    ['] cpy.#8 is cpy.#  ['] cpx.#8 is cpx.# ;
 
-: axy8defines ( -- ) true m-flag !  true x-flag ! 
-   ['] ora.#8 is ora.#  ['] and.#8 is and.#  
-   ['] eor.#8 is eor.#  ['] adc.#8 is adc.#  
-   ['] bit.#8 is bit.#  ['] lda.#8 is lda.#  
-   ['] cmp.#8 is cmp.#  ['] sbc.#8 is sbc.# 
-   ['] ldy.#8 is ldy.#  ['] ldx.#8 is ldx.# 
-   ['] cpy.#8 is cpy.#  ['] cpx.#8 is cpx.# ;  
+: axy8defines ( -- ) a8defines  xy8defines ; 
 
 : a16defines ( -- )  false m-flag ! 
    ['] ora.#16 is ora.#  ['] and.#16 is and.#  
@@ -444,13 +438,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
    ['] ldy.#16 is ldy.#  ['] ldx.#16 is ldx.# 
    ['] cpy.#16 is cpy.#  ['] cpx.#16 is cpx.# ;
 
-: axy16defines ( -- )  false m-flag !  false x-flag ! 
-   ['] ora.#16 is ora.#  ['] and.#16 is and.#  
-   ['] eor.#16 is eor.#  ['] adc.#16 is adc.#  
-   ['] bit.#16 is bit.#  ['] lda.#16 is lda.#  
-   ['] cmp.#16 is cmp.#  ['] sbc.#16 is sbc.# 
-   ['] ldy.#16 is ldy.#  ['] ldx.#16 is ldx.# 
-   ['] cpy.#16 is cpy.#  ['] cpx.#16 is cpx.# ;  
+: axy16defines ( -- )  a16defines  xy16defines ;
 
 
 \ Switch to 8/16 bit with SEP/REP instructions 
