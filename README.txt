@@ -1,9 +1,9 @@
 A Typist's 65816 Assembler in Forth
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 31. May 2015 (BETA 0.1)
+This version: 12. Jun 2015 (ALPHA 0.1)
 
-This is an assembler for the 65815 8/16-bit hybrid MPU written in gforth. 
+This is an assembler for the 65815 8/16-bit hybrid MPU written in gforth. It is ALPHA software, which means that lots of stuff is missing and other stuff won't work.
 
 
 WHAT YOU SHOULD DO

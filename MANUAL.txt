@@ -73,13 +73,7 @@ Note we don't have to use "$", "%" or "#" for the number formats because we can 
     block move                mvp 0,0            0 0 mvp      (65816) 
 
 
-Note that the "i" (for "indirect") is put where the parenthesis is in normal notation (compare lda.zxi and lda.ziy). The Branch instruction family is treated differently, because we assume that usually a label will usually be used instead of the actual offset. Immediate addressing has keep the hash sign ("#") because it is a "lower case" special character and we avoid conflicts with the "i" used for indirect mode. 
-
-Where Forth words conflict with the opcodes, we add a dot to the opcode, but leave off the tail in absolute mode. 
-
-    AND $1000     becomes       1000 and. 
-
-An example: 
+Note that the "i" (for "indirect") is put where the parenthesis is in normal notation (compare lda.zxi and lda.ziy). The Branch instruction family is treated differently, because we assume that usually a label will usually be used instead of the actual offset. Immediate addressing has keep the hash sign ("#") because it is a "lower case" special character and we avoid conflicts with the "i" used for indirect mode. An example: 
 
               LDA #$00                        00 lda.#
               TAX                                tax
@@ -88,6 +82,7 @@ An example:
               DEX                                dex
               BNE loop1                    loop1 bne
 
+Like Forth itself, the reverse order takes some getting used to, but works fine with some experience. 
 
 
 OPCODE SYNONYMS
@@ -105,7 +100,20 @@ The Typist's Assembler follows a naming system for opcodes that differs from the
         PER             phe.r           per
         RTL             rts.l           rtl
 
-The use of the systematic names is encouraged. 
+The use of the systematic names is encouraged, these are just for new users. 
+
+
+SPECIAL CASES
+
+Where Forth words conflict with the opcodes, we add a dot to the opcode, but leave off the tail in absolute mode. At the moment, that only affects AND in absolute mode: 
+
+        AND $1000  is   1000 and. 
+
+The PER command (push effective relative address) uses the ending .r 
+
+        PER        is        phe.r 
+
+In theory, the branch commands should be given this ending as well, but this would mean change merely for chages' sake. 
 
 
 

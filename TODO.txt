@@ -3,6 +3,5 @@ Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
 This version: 07. June 2015 
 
-(Pretty much everything at this point)
-
+This is ALPHA software, so not much works at this point, and less is tested. Note especially that long branches and jumps do not work at all (bra.l, jmp.l). 
 
