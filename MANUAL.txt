@@ -256,6 +256,8 @@ Note the A:8 command automatically takes care of the SEP instruction for us, and
 
 LABELS, JUMPS AND BRANCHES
 
+(NOTE: CURRENTLY, LONG JUMPS AND BRANCHES DO NOT WORK)
+
 Here's another problem with existing Forth assemblers: A lot of them don't accept labels, especially not forward references. They tell you to suck it up and use "structured programming" instead. Er, no. 
 
 As you can tell from the examples, labels are prefixed with "->" ("-->" would have been easier to read but it's used in ancient Forths as part of the BLOCK commands). Once a label is defined, you can use it for backwards jumps, branches and references without further ado. 
