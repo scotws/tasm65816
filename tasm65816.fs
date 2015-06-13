@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 12. June 2015
+\ This version: 13. June 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -269,11 +269,6 @@ create replacedummy
    create c,
    does> c@ b, makeshortbranch ; 
 
-\ handle BBR/BBS instructions 
-: testbranch ( opcode -- ) ( w u -- ) 
-   create c,
-   does> c@ b, b, makeshortbranch ; 
-   
 
 \ -----------------------
 \ HANDLE REGISTER SIZE STUFF
@@ -301,7 +296,6 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 \ Brute force listing of each possible opcode. Leave undefined entries
 \ empty so it is easier to port this program to other processors
 
-
 \ OPCODES 00 - 0F 
 00 2byte brk       01 2byte ora.dxi   02 2byte cop       03 2byte ora.s
 04 2byte tsb.d     05 2byte ora.d     06 2byte asl.d     07 2byte ora.dil
@@ -324,7 +318,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 30 twig bmi        31 2byte and.diy   32 2byte and.di    33 2byte and.siy
 34 2byte bit.dxi   35 2byte and.dx    36 2byte rol.dx    37 2byte and.dily
 38 1byte sec       39 3byte and.y     3a 1byte dec.a     3b 1byte tsc
-3c 3byte bit.x     3d 3byte and.x     3e 3byte rol.x     3f testbranch bbr3
+3c 3byte bit.x     3d 3byte and.x     3e 3byte rol.x     3f 4byte and.lx
 
 
 40 1byte rti       41 2byte eor.dxi   42 1byte wdm       43 2byte eor.s
@@ -339,7 +333,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 5c 4byte jmp.l     5d 3byte eor.x     5e 3byte lsr.x     5f 4byte eor.lx
 
 \ OPCODES 60 - 6F 
-60 1byte rts       61 2byte adc.dxi   62 3byte per       63 2byte adc.s
+60 1byte rts       61 2byte adc.dxi   62 3byte phe.r     63 2byte adc.s
 64 2byte stz.d     65 2byte adc.d     66 2byte ror.d     67 2byte adc.dil
 68 1byte pla       ( 69 see below )   6a 1byte ror.a     6b 1byte rts.l
 6c 3byte jmp.i     6d 3byte adc       6e 3byte ror       6f 4byte adc.l
@@ -382,7 +376,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 
 \ OPCODES D0 - DF 
 0d0 twig bne      0d1 2byte cmp.diy  0d2 2byte cmp.di   0d3 2byte cmp.siy
-0d4 1byte pei     0d5 2byte cmp.dx   0d6 2byte dec.dx   0d7 2byte cmp.dily
+0d4 2byte phe.di  0d5 2byte cmp.dx   0d6 2byte dec.dx   0d7 2byte cmp.dily
 0d8 1byte cld     0d9 3byte cmp.y    0da 1byte phx      0db 1byte stp 
 0dc 3byte jmp.il  0dd 3byte cmp.x    0de 3byte dec.x    0df 4byte cmp.lx
 
@@ -394,9 +388,18 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 
 \ OPCODES F0 - FF 
 0f0 twig beq      0f1 2byte sbc.diy  0f2 2byte sbc.di   0f3 2byte sbc.siy
-0f4 3byte pea     0f5 2byte sbc.dx   0f6 2byte inc.dx   0f7 2byte sbc.dily
+0f4 3byte phe.#   0f5 2byte sbc.dx   0f6 2byte inc.dx   0f7 2byte sbc.dily
 0f8 1byte sed     0f9 3byte sbc.y    0fa 1byte plx      0fb 1byte xce
 0fc 3byte jsr.xi  0fd 3byte sbc.x    0fe 3byte inc.x    0ff 4byte sbc.lx
+
+
+\ SYNONYMS 
+\ We use systematic names ("jmp.l") where WDC has their own opcodes ("JML").
+\ For people who insist on the strange opcodes, we define the WDC codes as
+\ synonyms
+
+ 22 4byte jsl     5c 3byte jml       62 2byte per        6b 1byte rtl
+ 82 3byte brl    0d4 2byte pei      0f4 3byte pea
 
 
 \ 8/16-BIT HYBRID INSTRUCTIONS
