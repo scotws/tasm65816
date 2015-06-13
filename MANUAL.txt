@@ -130,15 +130,15 @@ COMMENTS, SPACING, AND MULTIPLE COMMANDS
 
 Since this is Forth, you start out with the complete set of Forth commands you can use in the assembler program. This means that comments are marked by a "\" that comments out everything to the end of the line (the ";" of conventional assemblers), and anything in round brackets is ignored as well.
 
-             00 lda.d   ( this is a comment ) 
-             01 sta.d   \ this comment takes out the rest of the line 
+                00 lda.d   ( this is a comment ) 
+                01 sta.d   \ this comment takes out the rest of the line 
 
-Since this is not a normal assembler, but Forth, we can put more than one instructions in one line. The convention is to leave three spaces between "blocked" instructions if they have an operand and one if not.
+Since this is not a normal assembler, but Forth, we can put more than one instructions in one line, though this can make reading the code harder. 
 
-             10 lda.d   1000 sta
-             11 lda.d   1001 sta 
+                10 lda.d   1000 sta
+                11 lda.d   1001 sta 
 
-             nop nop nop nop nop 
+                nop nop nop nop nop 
 
 (Of course, if we have lots of instructions that are all the same, we should use Forth to write a macro anyway:
 
@@ -146,6 +146,8 @@ Since this is not a normal assembler, but Forth, we can put more than one instru
              5 n-nops 
 
 Remember to use ?DO instead of just do on an ANSI Forth system such as this one to prevent "0 0" loops that go through the complete number space. Fig-FORTH users don't have this problem.) 
+
+For more on style conventions, see below.
 
 
 ASSEMBLER COMMANDS
@@ -222,18 +224,18 @@ These encode the SEC XCE and CLC XCE sequences respectively. You could code thes
 
 There is a similiar situation with the size of the Accumulator and X and Y registers. Again, you can code these instuctions by hand with 
 
-        10 rep
+                10 rep
 or
-        20 sep
+                20 sep
 
 However, you should not do that, because the assembler needs to know what mode the processor is so it can decide if, say, A9 10 00 should be interpreted as 8-bit instruction sequence 
 
-        10 lda.# 
-           brk 
+                10 lda.# 
+                   brk 
 
 or the 16-bit variant 
 
-      0010 lda.#  
+              0010 lda.#  
         
 The normal WDC assembler format uses the pseudo-commands LONGA ON/OFF and LONGI ON/OFF to tell this to the assembler. These commands do not generate any code. The Typist's Assembler uses the commands
 
@@ -262,47 +264,69 @@ Here's another problem with existing Forth assemblers: A lot of them don't accep
 
 As you can tell from the examples, labels are prefixed with "->" ("-->" would have been easier to read but it's used in ancient Forths as part of the BLOCK commands). Once a label is defined, you can use it for backwards jumps, branches and references without further ado. 
    
-        -> frog  
-                      nop
-                 frog bra
-                 frog jmp
+   -> frog         nop
+              frog bra
+              frog jmp
 
 (When choosing a loop label name, remember that LOOP is already taken by Forth itself, as are REPEAT, BEGIN, and AGAIN.) 
 
 Forward branches are a bit more complicated, because internally the assembler has to create a list of unresolved references until the actual location of the label is known (a well-defined problem with single-pass assemblers). We deal with this by putting a special instruction at the start of the lines with forward references: "J>" for jumps (absolute addressing) and "B>" for branches (relative addressing). 
 
-             j>  frog jsr 
-                      nop
+           j> frog jsr 
+                   nop
 
-             j>  frog jsr 
-                      nop
+           j> frog jsr 
+                   nop
 
-             b>  dogs bra
-                      nop
+           b> dogs bra
+                   nop
 
-        -> dogs
-                      brk 
-        -> frog 
-                      inc
+   -> dogs         brk 
+   -> frog         inc
+              dogs bra 
+                   rts
 
-                 dogs bra 
-                      rts
-
-Note that by convention, there are two spaces between the "J>" or "B>" instruction and the label name. After the label has been defined with "->", we can access it without any further hassle. Because of the way forward references are handled, it is easier to deal with strings and subroutines if they are defined before the main code. 
+Note that by convention, there is one space between the "J>" or "B>" instruction and the label name. After the label has been defined with "->", we can access it without any further hassle. Because of the way forward references are handled, it is easier to deal with strings and subroutines if they are defined before the main code. 
 
 To access the most significant byte of a unresolved address referenced by a
 label, we use "MSB>", for the least significant byte we use "LSB>". For example, let's say the subroutine PRTSTR prints a zero-terminated string
 with the address in $00 and $01
 
-        lsb>  truthstr lda.#   00 sta.d
-        msb>  truthstr lda.#   01 sta.d
-
-                prtstr jsr 
-                       brk 
-        -> truthstr
-             s" Cats are cool" str0,
+     lsb> truthstr lda.#   
+                00 sta.d
+     msb> truthstr lda.#   
+                01 sta.d
+            prtstr jsr 
+                   brk 
+   -> truthstr
+   s" Cats are cool" str0,
 
 Note we use a variant of STR, here that automatically adds the terminating zero.
+
+
+
+STYLE CONVENTIONS
+
+As a very rough guide, labels and Forth code are indented by four spaces: 
+
+   -> cake
+   dup 1+ swap nip 
+
+The opcode body starts at 20 spaces in ("middle justified"). This means that the operands are ragged to the left. 
+
+                   nop
+              1000 lda.# 
+                10 sta.d
+
+As stated, the J> and such instructions are separated by one space from the target (see above). Putting more than one assembler instruction on one line is possible -- this is Forth, after all -- but not encouraged because it can make the code harder to read. If it is done, the convention is to leave three spaces between "blocked" instructions if they have an operand and one if not.
+
+                10 lda.d   1000 sta
+                11 lda.d   1001 sta 
+
+                nop nop nop nop nop 
+
+The first instructions are still "middle justified" with the first opcode starting 20 spaces in. 
+
 
 
 CALLING THE ASSEMBLER

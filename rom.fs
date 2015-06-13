@@ -2,7 +2,7 @@
 \ A Typist's 65816 Assembler in Forth
 \ Scot W. Stevenson <scot.stevenson@gmail.com>
 \ First version: 31. May 2015
-\ This version: 07. Jun 2015
+\ This version: 12. Jun 2015
 
 \ After assembly, this creates an 8 kb binary file that can be 
 \ loaded to $E000 a simulator such as the crude65816 which
@@ -29,7 +29,7 @@
 
    -> intro
       s" ------------------------------------------------" strlf, 
-      s" Testfile for A Typist's 65816 Assembler in Forth" strlf, 
+      s" Test ROM for A Typist's 65816 Assembler in Forth" strlf, 
       s" Scot W. Stevenson <scot.stevenson@gmail.com>" strlf, 
       s" ------------------------------------------------" str0, 
 
@@ -40,17 +40,17 @@
    \ Print a zero-terminated string. Assumes address in $00, $01
    \ Assumes A and Y are in 8-bit mode
    -> prtstr
-                  phy 
-               00 ldy.#
+                   phy 
+                00 ldy.#
    -> nxtchr
-               00 lda.diy
-         b>  fini beq
-           putchr sta
-                  iny
-           nxtchr bra
+                00 lda.diy
+           b> fini beq
+            putchr sta
+                   iny
+            nxtchr bra
    -> fini 
-                  ply
-                  rts
+                   ply
+                   rts
 
 \ --- MACROS ---
 \ In contrast to normal assemblers, our macros don't do so well if 
@@ -60,18 +60,21 @@
 
    \ Macro to print one linefeed
    \ Assumes A in 8-bit mode
-   : .linefeed  ( -- )   0a lda.#   putchr sta ; 
+   : .linefeed  ( -- )   
+                0a lda.#   
+            putchr sta ; 
 
    \ Macro to print a string. Note this doesn't work with strings
    \ that were defined lower down because it gets tricky with
    \ unresolved links. Gforth already uses .STRING 
    \ Assumes A is in 8-bit mode
    : .str ( link -- ) 
-      dup  lsb lda.#   
-            00 sta.d
-           msb lda.#   
-            01 sta.d
-        prtstr jsr ; 
+      dup  
+               lsb lda.#   
+                00 sta.d
+               msb lda.#   
+                01 sta.d
+            prtstr jsr ; 
 
 
 \ --- MAIN CODE --- 
@@ -81,22 +84,29 @@
 
    \ Make sure we're in the right mode after the vector jump
    \ because who knows where we came from 
-   emulation mode  a:8  xy:8 
+   emulation mode  axy:8
 
    \ Print the intro string
-   intro .str   .linefeed 
+   intro .str   
+         .linefeed 
 
    \ Print a bunch of 'a' so we have at least one loop
+                09 ldy.# 
+            char a lda.#      
+   -> nexta
+            putchr sta
+                   dey
+             nexta bne
 
-               09 ldy.# 
-           char a lda.#      
-   -> nxta
-           putchr sta
-                  dey
-             nxta bne
+   \ Do some math so we get to switch 8- and 16-bits around
+                   axy:16
+              1000 lda.# 
+                   clc 
+              20aa adc.# 
+                10 sta.d 
 
-   \ done with all of this 
-                  stp 
+   \ Done with all of this 
+                   stp 
 
 
 \ --- INTERRUPT VECTORS --- 
