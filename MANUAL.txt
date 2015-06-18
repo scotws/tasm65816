@@ -289,8 +289,7 @@ Forward branches are a bit more complicated, because internally the assembler ha
 Note that by convention, there is one space between the "J>" or "B>" instruction and the label name. After the label has been defined with "->", we can access it without any further hassle. Because of the way forward references are handled, it is easier to deal with strings and subroutines if they are defined before the main code. 
 
 To access the most significant byte of a unresolved address referenced by a
-label, we use "MSB>", for the least significant byte we use "LSB>". For example, let's say the subroutine PRTSTR prints a zero-terminated string
-with the address in $00 and $01
+label, we use "MSB>", for the least significant byte we use "LSB>", for the bank we need "BANK>". For example, let's say the subroutine PRTSTR prints a zero-terminated string with the address in $00 and $01
 
      lsb> truthstr lda.#   
                 00 sta.d

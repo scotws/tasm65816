@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 13. June 2015
+\ This version: 17. June 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -19,7 +19,8 @@
 
 hex
 
-variable lc0  \ initial target address on 65816 machine
+\ Initial target address on 65816 machine. Note this is a 24-bit number
+variable lc0  
 
 0ffffff 1+ constant maxmemory     \ 65816 has 24 bit address space
 create staging maxmemory allot    \ buffer to store assembled machine code
@@ -28,25 +29,22 @@ staging maxmemory erase
 variable bc  0 bc !  \ buffer counter, offset to start of staging area
 
 \ -----------------------
-\ LOW LEVEL ASSEMBLER INSTRUCTIONS
+\ LOW LEVEL AND HELPER INSTRUCTIONS
 
-\ Return least significant byte of 16- or 24-bit number
-: lsb ( u -- u8 )  0ff and ; 
+\ Return single bytes from a 16- or 24-bit number; assumes HEX
+: lsb  ( u -- u8 )  0ff and ; 
+: msb  ( u -- u8 )  0ff00 and  8 rshift ; 
+: bank  ( u -- u8 ) 0ff0000 and 10 rshift ; 
 
-\ Return most significant byte of 16- or 24-bit number
-: msb ( u -- u8 )  0ff00 and  8 rshift ; 
-
-\ Return the bank byte of a 24-bit number; assumes HEX
-: bank ( u -- u8 ) 0ff0000 and 10 rshift ; 
-
-\ convert 16 bit address to little-endian
-: swapbytes ( u -- uh ul )  dup msb swap lsb ; 
+\ Convert 16- or 24-bit address to little-endian. Leave lsb on top of stack 
+\ because we'll be saving it first. Note this is the reverse oder to the 
+\ Crude 65816 Simulator
+: 16>msb/lsb  ( u -- msb lsb )  dup msb swap lsb ; 
+: 24>bank/msb/lsb  ( u -- bank msb lsb )  dup 16>msb/lsb rot bank -rot ; 
 
 \ take a little-endian 16 bit address and turn it into a "normal"
-\ big-endian number. Note stack order is reverse of swapbytes  
-: unswapbytes ( ul uh - u ) 
-   8 lshift  0ff00 and  or 
-   0ffff and ;           \ paranoid 
+\ big-endian number. Note stack order is reverse of 16>msb/lsb
+: lsb/msb>16  ( lsb msb - u ) 8 lshift  0ff00 and  or  0ffff and ;
 
 \ make sure branch offset is the right size
 : short-branchable? ( n -- f )  -80 7f within ;
@@ -59,7 +57,7 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 : b,  ( c -- )  staging  bc @  +  c!  1 bc +! ; 
 
 \ Save one word (16 bit) in staging area, converting to little-endian
-: w,  ( w -- )  swapbytes b, b, ; 
+: w,  ( w -- )  16>msb/lsb  b, b, ; 
 
 \ Save one long word (24 bit) in the staging area, converting to little-endian
 : lw, ( lw -- )  dup b,  dup 0ff00 and  8 rshift b,  
@@ -108,17 +106,17 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 \ for the JSR/JMP/BRA opcode in label definitions
 : bc+1  ( -- offset)  bc @ 1+ ; 
 
-\ replace dummy references to an ABSOLUTE address word in list of 
+\ replace dummy references to an ABSOLUTE address word in the list of 
 \ unresolved forward references by JMP/JSR with the real address. 
 \ Used by "->" once we know what the actual address is 
 \ We add the content of the dummy values to the later ones so we can do
 \ addition and subtraction on the label before we know what it is
-\ (eg. "j>  mylabel 1+ jmp" ) 
-: addr>dummy          ( buffer-offset )
+\ (eg. "j> mylabel 1+ jmp" ) 
+: addr>dummy  ( buffer-offset -- )
    staging +  dup c@  ( addr ul ) 
    over char+ c@      ( addr ul uh ) 
-   unswapbytes        ( addr u ) 
-   lc +  swapbytes    ( addr 65addr-h 65addr-l ) 
+   lsb/msb>16         ( addr u ) 
+   lc +  16>msb/lsb   ( addr 65addr-h 65addr-l ) 
    rot tuck           ( 65addr-h addr 65addr-l addr ) 
    c!                 ( 65addr-h addr ) 
    char+              ( 65addr-h addr+1 ) 
@@ -224,7 +222,7 @@ create replacedummy
       while 
          dup cell+ @         ( addr u l-addr data ) 
          over 2 cells +  @   ( addr u l-addr data cell|0 ) 
-         replacedummy + @  execute
+         replacedummy +  @  execute
          @                   ( addr u next-l-addr ) 
       repeat 
    then       ( addr u ) 
