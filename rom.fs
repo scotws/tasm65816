@@ -58,11 +58,10 @@
 \ us access the strings and call the prtstr subroutine without 
 \ much hassle
 
-   \ Macro to print one linefeed
-   \ Assumes A in 8-bit mode
+   \ Macro to print one linefeed. Assumes A in 8-bit mode
    : .linefeed  ( -- )   
                 0a lda.#   
-            putchr sta ; 
+            putchr sta  ; 
 
    \ Macro to print a string. Note this doesn't work with strings
    \ that were defined lower down because it gets tricky with
@@ -74,7 +73,7 @@
                 00 sta.d
                msb lda.#   
                 01 sta.d
-            prtstr jsr ; 
+            prtstr jsr  ; 
 
 
 \ --- MAIN CODE --- 

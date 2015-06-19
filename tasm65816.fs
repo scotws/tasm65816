@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 17. June 2015
+\ This version: 19. June 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -28,15 +28,16 @@ staging maxmemory erase
 
 variable bc  0 bc !  \ buffer counter, offset to start of staging area
 
+
 \ -----------------------
 \ LOW LEVEL AND HELPER INSTRUCTIONS
 
 \ Return single bytes from a 16- or 24-bit number; assumes HEX
 : lsb  ( u -- u8 )  0ff and ; 
 : msb  ( u -- u8 )  0ff00 and  8 rshift ; 
-: bank  ( u -- u8 ) 0ff0000 and 10 rshift ; 
+: bank  ( u -- u8 ) 0ff0000 and  10 rshift ; 
 
-\ Convert 16- or 24-bit address to little-endian. Leave lsb on top of stack 
+\ Convert 16- or 24-bit address to little-endian. Leave LSB on top of stack 
 \ because we'll be saving it first. Note this is the reverse oder to the 
 \ Crude 65816 Simulator
 : 16>msb/lsb  ( u -- msb lsb )  dup msb swap lsb ; 
@@ -44,13 +45,14 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 
 \ take a little-endian 16 bit address and turn it into a "normal"
 \ big-endian number. Note stack order is reverse of 16>msb/lsb
+\ TODO see if we really want to do it this way
 : lsb/msb>16  ( lsb msb - u ) 8 lshift  0ff00 and  or  0ffff and ;
 
 \ make sure branch offset is the right size
 : short-branchable? ( n -- f )  -80 7f within ;
-: long-branchable?  ( n -- f )  -8000 7fff within ; \ TODO TESTME
+: long-branchable?  ( n -- f )  -8000 7fff within ; 
 
-\ Calculate location counter from target address and buffer offset
+\ Calculate currect location counter from target address and buffer offset
 : lc  ( -- )  lc0 @  bc @  + ; 
 
 \ Save one byte in staging area
@@ -60,8 +62,7 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 : w,  ( w -- )  16>msb/lsb  b, b, ; 
 
 \ Save one long word (24 bit) in the staging area, converting to little-endian
-: lw, ( lw -- )  dup b,  dup 0ff00 and  8 rshift b,  
-                 0ff0000 and  10 rshift b, ; 
+: lw, ( lw -- ) 24>bank/msb/lsb  b, b, b, ;  
 
 \ Save ASCII string provided by S" instruction (S, is reserved by gforth) 
 \ Note OVER + SWAP is also BOUNDS in gforth 
@@ -77,8 +78,8 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 \ -----------------------
 \ HIGH LEVEL ASSEMBLER INSTRUCTIONS
 
-\ set intial target address on 65816 machine. This command is 
-\ required in the source code
+\ set intial target address on 65816 machine. This command must be 
+\ present in the source code 
 : origin ( 65addr -- )  lc0 ! ; 
 
 \ move to a given address, filling the space inbetween with zeros
@@ -89,7 +90,7 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
    lc0 @ -  bc ! ;
 
 \ mark end of assembler source text, return buffer location and size
-\ This command is required in the source text
+\ This command must be present in the source code
 : end  ( -- addr u )  staging  bc @ ; 
 
 \ save assembled program to file, overwriting any file with same name
@@ -112,7 +113,7 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 \ We add the content of the dummy values to the later ones so we can do
 \ addition and subtraction on the label before we know what it is
 \ (eg. "j> mylabel 1+ jmp" ) 
-: addr>dummy  ( buffer-offset -- )
+: dummy>addr  ( buffer-offset -- )
    staging +  dup c@  ( addr ul ) 
    over char+ c@      ( addr ul uh ) 
    lsb/msb>16         ( addr u ) 
@@ -124,30 +125,37 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 
 \ replace dummy references to an RELATIVE offset byte in list of 
 \ unresolved forward references by BRA with the real offset.  
-: rel>dummy  ( buffer-offset -- )
+: dummy>rel  ( buffer-offset -- )
    dup staging +     ( b-off addr ) 
    bc @              ( b-off addr bc ) 
    rot -  1-         ( addr 65off ) 
-   dup short-branchable? invert if
+   dup short-branchable? invert if  \ TODO move this to BRA command
       cr ." Offset out of branching range (" . ." )" then 
    swap c! ; 
 
 \ replace dummy reference to the MOST SIGNIFICANT BYTE in a list of 
 \ forward references with the real MSB of the label
-: msb>dummy  ( buffer-offset -- ) 
+: dummy>msb  ( buffer-offset -- ) 
    staging +  lc msb  ( addr msb ) 
    swap c! ; 
 
 \ replace dummy reference to the LEAST SIGNIFICANT BYTE in a list of 
 \ forward references with the real LSB of the label
-: lsb>dummy  ( buffer-offset -- ) 
+: dummy>lsb  ( buffer-offset -- ) 
    staging +  lc lsb  ( addr lsb ) 
    swap c! ; 
+
+\ replace dummy reference to the BANK BYTE in a list of forward 
+\ references with the real LSB of the label
+: dummy>bank  ( buffer-offset -- ) 
+   staging +  lc bank  ( addr bank ) 
+   swap c! ; 
+
 
 \ Use a jump table to handle replacement of dummy values, which should make 
 \ it easier to add other addresing forms for other processors
 create replacedummy  
-      ' rel>dummy ,  ' addr>dummy , ' msb>dummy , ' lsb>dummy ,            
+      ' dummy>rel ,  ' dummy>addr , ' dummy>msb , ' dummy>lsb , ' dummy>bank ,            
 
 
 \ Handle forward unresolved references by either creating a new linked list
@@ -200,6 +208,15 @@ create replacedummy
    addlabel 
    cell 3 * ,    \ save 3* cell size as offset to replacement jump table
    0 ;           \ save 0000 as dummy value 
+
+\ Create an unresolved forward reference to the BANK BYTE
+\ of an unresolved forward label reference
+: bank> ( "name" -- adr ) 
+   addlabel 
+   cell 4 * ,    \ save 4* cell size as offset to replacement jump table
+   0 ;           \ save 0000 as dummy value 
+
+
 
 
 \ Define a label. Assume that the user knows what they are doing and
