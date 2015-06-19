@@ -129,8 +129,6 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
    dup staging +     ( b-off addr ) 
    bc @              ( b-off addr bc ) 
    rot -  1-         ( addr 65off ) 
-   dup short-branchable? invert if  \ TODO move this to BRA command
-      cr ." Offset out of branching range (" . ." )" then 
    swap c! ; 
 
 \ replace dummy reference to the MOST SIGNIFICANT BYTE in a list of 
@@ -191,7 +189,7 @@ create replacedummy
 \ Create an unresolved ABSOLUTE forward label reference (for jumps)
 : j> ( "name" -- addr )
    addlabel 
-   cell ,        \ save cell size as offset to replacement jump table
+   cell ,        \ save cell size as offset to the replacement jump table
    0 ;           \ save 0000 as dummy so we can do addition and subtraction
                  \ on label even if we don't know what it is yet
 
@@ -199,24 +197,22 @@ create replacedummy
 \ of an unresolved forward label reference
 : msb> ( "name" -- adr ) 
    addlabel 
-   cell 2* ,     \ save 2* cell size as offset to replacement jump table
+   cell 2* ,     \ save 2* cell size as offset to the replacement jump table
    0 ;           \ save 0000 as dummy value 
 
 \ Create an unresolved forward reference to the LEAST SIGNIFICANT BYTE
 \ of an unresolved forward label reference
 : lsb> ( "name" -- adr ) 
    addlabel 
-   cell 3 * ,    \ save 3* cell size as offset to replacement jump table
+   cell 3 * ,    \ save 3* cell size as offset to the replacement jump table
    0 ;           \ save 0000 as dummy value 
 
 \ Create an unresolved forward reference to the BANK BYTE
 \ of an unresolved forward label reference
 : bank> ( "name" -- adr ) 
    addlabel 
-   cell 4 * ,    \ save 4* cell size as offset to replacement jump table
+   cell 4 * ,    \ save 4* cell size as offset to the replacement jump table
    0 ;           \ save 0000 as dummy value 
-
-
 
 
 \ Define a label. Assume that the user knows what they are doing and
@@ -263,26 +259,36 @@ create replacedummy
    create c,
    does> c@ b, w, ; 
 
-: 4byte ( opcode -- ) ( lw -- )  \ TODO TESTME 
+: 4byte ( opcode -- ) ( lw -- )
    create c, 
    does> c@ b, lw, ; 
 
 
-\ caclulate short branch  
-: makeshortbranch ( w -- u ) 
+\ caclulate short branch  (8-bit, BRA etc) 
+: makeshortbranch ( 65addr -- ) 
    lc -  1-
-   dup short-branchable? if 
-      b, else
-      drop ." Error: Branch out of range" then ; 
+   dup short-branchable?  if b, 
+      else  ." Error: Short branch out of range, lc: " lc .  space  "bc: " bc . cr 
+            drop then ; 
 
-\ TODO add longbranch 
+\ caclulate long branch  (16-bit, BRA.L ) 
+: makelongbranch ( 65addr -- ) 
+   lc -  1-
+   dup long-branchable?  if w, 
+      else  ." Error: Long branch out of range, lc: " lc .  space  "bc: " bc . cr 
+            drop then ; 
 
 
-\ handel backward branch instructions 
-\ note BRANCH is reserved for Forth
+\ handle SHORT branch instructions (BRA, etc); note BRANCH is reserved by Forth
 : twig  ( opcode -- )  ( w -- ) 
    create c,
    does> c@ b, makeshortbranch ; 
+
+
+\ handle LONG branch instructions (BRA.L); note BRANCH is reserved by Forth
+: bigtwig  ( opcode -- )  ( w -- ) 
+   create c,
+   does> c@ b, makelongbranch ; 
 
 
 \ -----------------------
@@ -360,7 +366,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 7c 3byte jmp.xi    7d 3byte adc.x     7e 3byte ror.x     7f 4byte adc.lx
 
 \ OPCODES 80 - 8F 
-80 twig bra        81 2byte sta.dxi   82 3byte bra.l     83 2byte sta.s
+80 twig bra        81 2byte sta.dxi   82 bigtwig bra.l   83 2byte sta.s
 84 2byte sty.d     85 2byte sta.d     86 2byte stx.d     87 2byte sta.dil
 88 1byte dey       ( 89 see below )   8a 1byte txa       8b 1byte phb
 8c 3byte sty       8d 3byte sta       8e 3byte stx       8f 4byte sta.l
@@ -413,8 +419,13 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 \ For people who insist on the strange opcodes, we define the WDC codes as
 \ synonyms
 
- 22 4byte jsl     5c 3byte jml       62 2byte per        6b 1byte rtl
- 82 3byte brl    0d4 2byte pei      0f4 3byte pea
+  22 4byte jsl     \ jsr.l
+  5c 3byte jml     \ jmp.l
+  62 2byte per     \ phe.r   
+  6b 1byte rtl     \ rts.l 
+  82 bigtwig brl   \ bra.l 
+ 0d4 2byte pei     \ phe.i
+ 0f4 3byte pea     \ phe.# 
 
 
 \ 8/16-BIT HYBRID INSTRUCTIONS
