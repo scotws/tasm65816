@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 19. June 2015
+\ This version: 21. June 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -41,12 +41,20 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 \ because we'll be saving it first. Note this is the reverse oder to the 
 \ Crude 65816 Simulator
 : 16>msb/lsb  ( u -- msb lsb )  dup msb swap lsb ; 
-: 24>bank/msb/lsb  ( u -- bank msb lsb )  dup 16>msb/lsb rot bank -rot ; 
+: 24>bank/msb/lsb  ( u -- bank msb lsb )  
+   dup            ( u u ) 
+   16>msb/lsb     ( u msb lsb )  
+   rot            ( msb lsb u ) 
+   bank -rot ;    ( bank msb lsb ) 
 
 \ take a little-endian 16 bit address and turn it into a "normal"
 \ big-endian number. Note stack order is reverse of 16>msb/lsb
-\ TODO see if we really want to do it this way
 : lsb/msb>16  ( lsb msb - u ) 8 lshift  0ff00 and  or  0ffff and ;
+: lsb/msb/bank>24        ( lsb msb bank - u )  
+   -rot lsb/msb>16       ( bank u16 ) 
+   swap                  ( u16 bank ) 
+   0ff and  10 lshift    ( u16 u8 ) 
+   or ; 
 
 \ make sure branch offset is the right size
 : short-branchable? ( n -- f )  -80 7f within ;
@@ -149,11 +157,46 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
    staging +  lc bank  ( addr bank ) 
    swap c! ; 
 
+\ replace dummy references to an RELATIVE offset byte in list of 
+\ unresolved forward references by BRA.L with the real offset.  
+: dummy>rel16  ( buffer-offset -- ) 
+   dup staging +     ( b-off addr ) 
+   bc @              ( b-off addr bc ) 
+   rot -  2 -        ( addr 65off )
+   16>msb/lsb        ( addr msb lsb )
+   rot               ( msb lsb addr ) 
+   tuck              ( msb addr lsb addr ) 
+   c!                ( msr addr ) 
+   char+ c! ; 
+
+\ replace dummy references to an ABSOLUTE LONG address word in the list of 
+\ unresolved forward references by JMP.L/JSR.L with the real address. 
+\ Used by "->" once we know what the actual address is 
+\ We add the content of the dummy values to the later ones so we can do
+\ addition and subtraction on the label before we know what it is
+\ (eg. "jl> mylabel 1+ jmp" )  
+: dummy>addr24  ( buffer-offset -- )  
+   staging +  dup c@  ( addr lsb )  
+   over char+         ( addr lsb addr+1 ) 
+   dup c@             ( addr lsb addr+1 msb ) 
+   swap char+ c@      ( addr lsb msb bank ) 
+   lsb/msb/bank>24    ( addr u ) 
+   lc +               ( addr 65addr ) 
+   dup lsb            ( addr 65addr lsb ) 
+   rot                ( 65addr lsb addr ) 
+   tuck               ( 65addr addr lsb addr ) 
+   c! char+           ( 65addr addr ) 
+   over msb           ( 65addr addr msb ) 
+   over c! char+      ( 65addr addr ) 
+   swap bank          ( addr bank ) 
+   swap c! ;      
+
 
 \ Use a jump table to handle replacement of dummy values, which should make 
 \ it easier to add other addresing forms for other processors
 create replacedummy  
-      ' dummy>rel ,  ' dummy>addr , ' dummy>msb , ' dummy>lsb , ' dummy>bank ,            
+      ' dummy>rel ,   ' dummy>addr , ' dummy>msb , ' dummy>lsb , ' dummy>bank ,            
+      ' dummy>rel16 , ' dummy>addr24 ,            
 
 
 \ Handle forward unresolved references by either creating a new linked list
@@ -214,6 +257,19 @@ create replacedummy
    cell 4 * ,    \ save 4* cell size as offset to the replacement jump table
    0 ;           \ save 0000 as dummy value 
 
+\ Create an unresolved RELATIVE LONG forward label reference (for branches) 
+: bl>  ( "name" -- addr )  
+   addlabel 
+   cell 5 * ,    \ save 5* cell size as offset to replacement jump table 
+   lc  ;         \ use lc as dummy so we stay inside branch range 
+
+\ Create an unresolved ABSOLUTE LONG forward label reference (for jumps)
+: jl> ( "name" -- addr ) 
+   addlabel 
+   cell 6 * ,    \ save 6* cell size as offset to replacement jump table 
+   0 ;           \ save 0000 as dummy so we can do addition and subtraction
+                 \ on label even if we don't know what it is yet
+
 
 \ Define a label. Assume that the user knows what they are doing and
 \ doesn't try to name label twice. If there were unresolved forward 
@@ -268,15 +324,15 @@ create replacedummy
 : makeshortbranch ( 65addr -- ) 
    lc -  1-
    dup short-branchable?  if b, 
-      else  ." Error: Short branch out of range, lc: " lc .  space  "bc: " bc . cr 
-            drop then ; 
+      else  ." Error: Short branch out of range, lc: " lc .  
+            space ." bc: " bc . cr  drop then ; 
 
 \ caclulate long branch  (16-bit, BRA.L ) 
 : makelongbranch ( 65addr -- ) 
-   lc -  1-
+   lc - 2 -  
    dup long-branchable?  if w, 
-      else  ." Error: Long branch out of range, lc: " lc .  space  "bc: " bc . cr 
-            drop then ; 
+      else  ." Error: Long branch out of range, lc: " lc .  
+            space ." bc: " bc . cr  drop then ; 
 
 
 \ handle SHORT branch instructions (BRA, etc); note BRANCH is reserved by Forth

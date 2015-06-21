@@ -2,7 +2,7 @@
 \ A Typist's 65816 Assembler in Forth
 \ Scot W. Stevenson <scot.stevenson@gmail.com>
 \ First version: 12. Jun 2015
-\ This version: 12. Jun 2015
+\ This version: 21. Jun 2015
 
 \ This is a primitive testing suite. Load it after starting Gforth with 
 \ "gforth -m 1G" and "include tasm65816.fs" with the instruction
@@ -76,10 +76,31 @@
     0001 cpx.#       \ 0e0 01 00 
 
 
-   end 
+    cr .( ... testing branching, must redefine BOTTOMLINK: ) 
+
+   -> toplink      nop        \ 0ea
+
+           toplink bra.l      \ 82 0fc 0ff 
+           toplink bra        \ 80 0fa
+           toplink jmp        \ 4c 5a 0e0
+           toplink jsr        \ 20 5a 0e0
+           toplink jmp.l      \ 5c 5a 0e0 00
+           toplink jsr.l      \ 22 5a 0e0 00
+
+    b>  bottomlink bra        \ 80 11
+    j>  bottomlink jmp        \ 4c 81 0e0
+    j>  bottomlink jsr        \ 20 81 0e0
+    jl> bottomlink jmp.l      \ 5c 81 0e0 00
+    jl> bottomlink jsr.l      \ 22 81 0e0 00
+    bl> bottomlink bra.l      \ 82 00 00       
+
+   -> bottomlink   nop        \ 0ea 
+
 
 \ ----------------------------------- 
    cr .( ... testing finished. ) cr
+
+   end 
 
    \ uncomment next line to save the hex dump to the file "test.bin"
    2dup save test.bin 
@@ -111,6 +132,17 @@
    0c9 c, 0ff c, 0ff c,  0a0 c, 00 c, 00 c, 
    0c0 c, 00 c, 00 c,    0a2 c, 0cc c, 0ff c, 
    0e0 c, 01 c, 00 c, 
+
+   \ branch testing
+ 
+   0ea c,   82 c, 0fc c, 0ff c,   80 c, 0fa c, 
+   4c c, 5a c, 0e0 c,    20 c, 5a c, 0e0 c, 
+   5c c,  5a c, 0e0 c, 00 c,    22 c, 5a c, 0e0 c, 00 c,    
+   80 c, 11 c,    4c c, 81 c, 0e0 c,   20 c, 81 c, 0e0 c, 
+   5c c, 81 c, 0e0 c, 00 c,    22 c, 81 c, 0e0 c, 00 c,    
+   82 c, 00 c, 00 c,   0ea c,
+
+
 
 
 \ --- VALIDATION ROUTINES ---
