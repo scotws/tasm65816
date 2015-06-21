@@ -1,7 +1,9 @@
 TODO for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 07. June 2015 
+This version: 22. June 2015 
 
-This is ALPHA software, so not much works at this point, and less is tested. Note especially that long branches and jumps do not work at all (bra.l, jmp.l). 
+This is ALPHA software, so not much works at this point, and less is tested. 
+
+The next steps are probably going to be removing the jump table for replacing dummy values during unresolved references, and getting rid of B> and such in favor of a system that requires less typing.
 
