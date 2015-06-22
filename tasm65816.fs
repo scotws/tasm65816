@@ -174,7 +174,7 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 \ Used by "->" once we know what the actual address is 
 \ We add the content of the dummy values to the later ones so we can do
 \ addition and subtraction on the label before we know what it is
-\ (eg. "jl> mylabel 1+ jmp" )  
+\ (eg. "jl> mylabel 1+ jmp" )  TODO This is horrible, rewrite
 : dummy>addr24  ( buffer-offset -- )  
    staging +  dup c@  ( addr lsb )  
    over char+         ( addr lsb addr+1 ) 
@@ -356,9 +356,8 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 
 \ switch emulation/native mode, requires combined command ("emulation mode")
 \ use these commands instead of coding the instructions directly
-: emulation ( -- )  true e-flag !  38 b, ;  \ CLC 
-: native ( -- )  false e-flag !  18 b, ;  \ SEC 
-: mode ( -- )  0fb b, ; 
+: emulated  ( -- )  true e-flag !  38 b, 0fb b, ;  \ CLC 
+: native  ( -- )  false e-flag !  18 b, 0fb b, ;  \ SEC 
 
 \ make things easier for the poor humans and make asserting easier
 : a=8?  ( -- f )  m-flag @  ; 

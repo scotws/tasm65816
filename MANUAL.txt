@@ -1,7 +1,7 @@
 Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 13. June 2015 
+This version: 21. June 2015 
 
 
 TL;DR
@@ -156,9 +156,9 @@ For quick typing, all commands are lower case, but will be listed here in upper 
 
     ORIGIN ( 65addr -- ) Tells the assembler where to start compilation in the 65816 64k 16-bit address space of a bank (not a 24-bit complete address). This word is required. 
 
-    EMULATION MODE ( -- ) Switch to emulated (8-bit) mode. Encodes the SEC XCE sequence (among other things). Note the assembler starts off with the assumption taht we are in this mode. 
+    EMULATED ( -- ) Switch to emulated (8-bit) mode. Encodes the SEC XCE sequence (among other things). Note the assembler starts off with the assumption taht we are in this mode. 
 
-    NATIVE MODE ( -- ) Switch to native (16-bit) mode. Encodes the CLC XCE sequence (among other things).  
+    NATIVE ( -- ) Switch to native (16-bit) mode. Encodes the CLC XCE sequence (among other things).  
 
     MODE? ( -- f ) Return flag showing the mode the assembler thinks it is in. Emulation mode returns "true", native mode "false". 
 

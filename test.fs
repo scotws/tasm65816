@@ -27,7 +27,7 @@
 \ --- TESTING IMMEDIATE MODE --- 
 
    cr .( ... testing immediate mode, emulation ...) 
-   emulation mode    \  38 0fb  --  A, X and Y should be 8 bit
+   emulated          \  38 0fb  --  A, X and Y should be 8 bit
       
       00 lda.#       \ 0a9 00 
       10 ora.#       \  09 10
@@ -43,7 +43,7 @@
       01 cpx.#       \ 0e0 01 
 
    cr .( ... testing immediate mode, native, 8-bit ...) 
-   native mode       \  18 0fb -- A, X and Y should still be 8 bit 
+   native            \  18 0fb -- A, X and Y should still be 8 bit 
 
       00 lda.#       \ 0a9 00 
       10 ora.#       \  09 10
