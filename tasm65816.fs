@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 21. June 2015
+\ This version: 26. June 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -299,10 +299,34 @@ create replacedummy
    \ (re)define the label
    drop nextname create lc , 
       does> @ ; 
+
+\ -----------------------
+\ OPCODE HELPER FUNCTIONS
+
+\ caclulate short branch  (8-bit, BRA etc) 
+: makeshortbranch ( 65addr -- ) 
+   lc -  1-
+   dup short-branchable?  if b, 
+      else  ." Error: Short branch out of range, lc: " lc .  
+            space ." bc: " bc . cr  drop then ; 
+
+\ caclulate long branch  (16-bit, BRA.L ) 
+: makelongbranch ( 65addr -- ) 
+   lc - 2 -  
+   dup long-branchable?  if w, 
+      else  ." Error: Long branch out of range, lc: " lc .  
+            space ." bc: " bc . cr  drop then ; 
+
+\ format and fix sequence of operands for the block move commands
+\ MVN and MVP: Assembler is "src dest mvn", and machine code sequence
+\ is "<opc> <dest> <src>". 
+: clipblocks ( src dest -- )  lsb b, lsb b, ; 
+
   
 \ -----------------------
 \ DEFINE OPCODES 
 
+\ handle GENERIC opcodes
 : 1byte  ( opcode -- ) ( -- ) 
    create c,
    does> c@ b, ; 
@@ -319,32 +343,21 @@ create replacedummy
    create c, 
    does> c@ b, lw, ; 
 
-
-\ caclulate short branch  (8-bit, BRA etc) 
-: makeshortbranch ( 65addr -- ) 
-   lc -  1-
-   dup short-branchable?  if b, 
-      else  ." Error: Short branch out of range, lc: " lc .  
-            space ." bc: " bc . cr  drop then ; 
-
-\ caclulate long branch  (16-bit, BRA.L ) 
-: makelongbranch ( 65addr -- ) 
-   lc - 2 -  
-   dup long-branchable?  if w, 
-      else  ." Error: Long branch out of range, lc: " lc .  
-            space ." bc: " bc . cr  drop then ; 
-
-
-\ handle SHORT branch instructions (BRA, etc); note BRANCH is reserved by Forth
+\ handle SHORT branch instructions (BRA, etc); BRANCH is reserved by Forth
 : twig  ( opcode -- )  ( w -- ) 
    create c,
    does> c@ b, makeshortbranch ; 
 
-
-\ handle LONG branch instructions (BRA.L); note BRANCH is reserved by Forth
+\ handle LONG branch instructions (BRA.L); BRANCH is reserved by Forth
 : bigtwig  ( opcode -- )  ( w -- ) 
    create c,
    does> c@ b, makelongbranch ; 
+
+\ handle BLOCK MOVE instructions (MVN, MVP), which have a reverse order of
+\ operands in machine code and assembler. BLOCK AND MOVE are reserved by Forth
+: blkmov ( opcode -- ) ( c c -- ) 
+   create c,
+   does> c@ b, clipblocks ; 
 
 
 \ -----------------------
@@ -398,13 +411,13 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 
 \ OPCODES 40 - 4F 
 40 1byte rti       41 2byte eor.dxi   42 2byte wdm       43 2byte eor.s
-44 3byte mvp       45 2byte eor.d     46 2byte lsr.d     47 2byte eor.dil
+44 blkmov mvp      45 2byte eor.d     46 2byte lsr.d     47 2byte eor.dil
 48 1byte pha       ( 49 see below )   4a 1byte lsr.a     4b 1byte phk
 4c 3byte jmp       4d 3byte eor       4e 3byte lsr       4f 4byte eor.l
 
 \ OPCODES 50 - 5F 
 50 twig bvc        51 2byte eor.diy   52 2byte eor.di    53 2byte eor.siy
-54 3byte mvn       55 2byte eor.dx    56 2byte lsr.dx    57 2byte eor.dily
+54 blkmov mvn      55 2byte eor.dx    56 2byte lsr.dx    57 2byte eor.dily
 58 1byte cli       59 3byte eor.y     5a 1byte phy       5b 1byte tcd
 5c 4byte jmp.l     5d 3byte eor.x     5e 3byte lsr.x     5f 4byte eor.lx
 

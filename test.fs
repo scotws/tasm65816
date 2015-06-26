@@ -2,7 +2,7 @@
 \ A Typist's 65816 Assembler in Forth
 \ Scot W. Stevenson <scot.stevenson@gmail.com>
 \ First version: 12. Jun 2015
-\ This version: 21. Jun 2015
+\ This version: 26. Jun 2015
 
 \ This is a primitive testing suite. Load it after starting Gforth with 
 \ "gforth -m 1G" and "include tasm65816.fs" with the instruction
@@ -96,6 +96,13 @@
 
    -> bottomlink   nop        \ 0ea 
 
+   cr .( ... testing move instructions ... ) 
+
+   \ Note that MVP and MVN reverse the order of the operands from the 
+   \ assembler to the actual machine code
+            00 0a mvp         \ 44 0a 00 
+           0ff 00 mvn         \ 54 00 0ff
+
 
 \ ----------------------------------- 
    cr .( ... testing finished. ) cr
@@ -142,6 +149,9 @@
    5c c, 81 c, 0e0 c, 00 c,    22 c, 81 c, 0e0 c, 00 c,    
    82 c, 00 c, 00 c,   0ea c,
 
+   \ block moves 
+
+   44 c, 0a c, 00 c,   54 c, 00 c, 0ff c, 
 
 
 

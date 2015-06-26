@@ -1,7 +1,7 @@
 The Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 21. June 2015 
+This version: 26. June 2015 
 
 
 TL;DR
@@ -100,7 +100,7 @@ The Typist's Assembler follows a naming system for opcodes that differs from the
         62        PER         phe.r          per
         6b        RTL         rts.l          rtl
 
-The use of the systematic names is encouraged, these are just for new users. 
+The use of the systematic names is encouraged, the synonyms are just for new users. 
 
 
 SPECIAL CASES
@@ -114,6 +114,12 @@ The PER command (push effective relative address) uses the ending .r
         PER        is        phe.r 
 
 In theory, the branch commands should be given this ending as well, but this would mean change merely for chages' sake. 
+
+The block move commands MVN and MVP are entered as
+
+        <src> <dest> mvp|mvn
+
+There is no comma or other separater. The assembler assumes source and destination to be each one byte, and will only recognize the least significant byte, where as conventional assemblers will strip an address so that the block is left over. Note that internally, the operands are stored in the reverse sequence as machine code - "<opcode> <dest> <src>". 
 
 
 
