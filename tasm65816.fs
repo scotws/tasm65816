@@ -396,8 +396,8 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 38 1byte sec       39 3byte and.y     3a 1byte dec.a     3b 1byte tsc
 3c 3byte bit.x     3d 3byte and.x     3e 3byte rol.x     3f 4byte and.lx
 
-
-40 1byte rti       41 2byte eor.dxi   42 1byte wdm       43 2byte eor.s
+\ OPCODES 40 - 4F 
+40 1byte rti       41 2byte eor.dxi   42 2byte wdm       43 2byte eor.s
 44 3byte mvp       45 2byte eor.d     46 2byte lsr.d     47 2byte eor.dil
 48 1byte pha       ( 49 see below )   4a 1byte lsr.a     4b 1byte phk
 4c 3byte jmp       4d 3byte eor       4e 3byte lsr       4f 4byte eor.l
@@ -409,7 +409,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 5c 4byte jmp.l     5d 3byte eor.x     5e 3byte lsr.x     5f 4byte eor.lx
 
 \ OPCODES 60 - 6F 
-60 1byte rts       61 2byte adc.dxi   62 3byte phe.r     63 2byte adc.s
+60 1byte rts       61 2byte adc.dxi   62 bigtwig phe.r   63 2byte adc.s
 64 2byte stz.d     65 2byte adc.d     66 2byte ror.d     67 2byte adc.dil
 68 1byte pla       ( 69 see below )   6a 1byte ror.a     6b 1byte rts.l
 6c 3byte jmp.i     6d 3byte adc       6e 3byte ror       6f 4byte adc.l
@@ -445,7 +445,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 0bc 3byte ldy.x   0bd 3byte lda.x    0be 3byte ldx.y    0bf 4byte lda.lx
 
 \ OPCODES C0 - CF 
-( c0 see below )  0c1 2byte cmp.dxi  0c2 1byte rep      0c3 2byte cmp.s
+( c0 see below )  0c1 2byte cmp.dxi  0c2 2byte rep      0c3 2byte cmp.s
 0c4 2byte cpy.d   0c5 2byte cmp.d    0c6 2byte dec.d    0c7 2byte cmp.dil
 0c8 1byte iny     ( c9 see below )   0ca 1byte dex      0cb 1byte wai
 0cc 3byte cpy     0cd 3byte cmp      0ce 3byte dec      0cf 4byte cmp.l
