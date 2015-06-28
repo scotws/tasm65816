@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 26. June 2015
+\ This version: 28. June 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -19,8 +19,9 @@
 
 hex
 
-\ Initial target address on 65816 machine. Note this is a 24-bit number
-variable lc0  
+\ Initial target address on 65816 machine. This is a 24-bit number. 
+\ If user provides no initial address, we use 0000
+variable lc0  0 lc0 ! 
 
 0ffffff 1+ constant maxmemory     \ 65816 has 24 bit address space
 create staging maxmemory allot    \ buffer to store assembled machine code
@@ -86,8 +87,8 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 \ -----------------------
 \ HIGH LEVEL ASSEMBLER INSTRUCTIONS
 
-\ set intial target address on 65816 machine. This command must be 
-\ present in the source code 
+\ set intial target address on 65816 machine. If no such command is
+\ present in the source code, we start assembling at 000000
 : origin ( 65addr -- )  lc0 ! ; 
 
 \ move to a given address, filling the space inbetween with zeros

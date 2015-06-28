@@ -1,7 +1,7 @@
 The Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 26. June 2015 
+This version: 28. June 2015 
 
 
 TL;DR
@@ -179,7 +179,7 @@ ASSEMBLER COMMANDS
 
 For quick typing, all commands are lower case, but will be listed here in upper case for quicker reference. In keeping with Forth conventions, assembler commands are not prefixed with with a dot -- in Forth, these are words that print something to the screen. 
 
-    ORIGIN ( 65addr -- ) Tells the assembler where to start compilation in the 65816 64k 16-bit address space of a bank (not a 24-bit complete address). This word is required. 
+    ORIGIN ( 65addr -- ) Tells the assembler where to start compilation in the 65816 64k 16-bit address space of a bank (not a 24-bit complete address). If no such word is provided, assembly starts at 000000. 
 
     EMULATED ( -- ) Switch to emulated (8-bit) mode. Encodes the SEC XCE sequence (among other things). Note the assembler starts off with the assumption taht we are in this mode. 
 
