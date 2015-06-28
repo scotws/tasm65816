@@ -1,10 +1,10 @@
 TODO for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 22. June 2015 
+This version: 28. June 2015 
 
 This is ALPHA software, so not much works at this point, and less is tested. 
 
-- Change code so that individual instructions can have more specialized functions, such as XCE checking to see if previous instruction was either CLC or SEC
+- Change code so that individual instructions can have more specialized functions
 - Get rid of various branching/jumping commands to future labels, and replace them by one generic version
 

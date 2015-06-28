@@ -27,7 +27,9 @@ variable lc0  0 lc0 !
 create staging maxmemory allot    \ buffer to store assembled machine code
 staging maxmemory erase 
 
-variable bc  0 bc !  \ buffer counter, offset to start of staging area
+\ buffer counter, offset to start of staging area. Points to the next free
+\ byte, not the last byte saved 
+variable bc  0 bc !  
 
 
 \ -----------------------
@@ -64,8 +66,8 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 \ Calculate currect location counter from target address and buffer offset
 : lc  ( -- )  lc0 @  bc @  + ; 
 
-\ Save one byte in staging area
-: b,  ( c -- )  staging  bc @  +  c!  1 bc +! ; 
+\ Save one byte in staging area, 
+: b,  ( c -- )  staging  bc @  +   c!   1 bc +! ; 
 
 \ Save one word (16 bit) in staging area, converting to little-endian
 : w,  ( w -- )  16>msb/lsb  b, b, ; 
@@ -195,6 +197,7 @@ variable bc  0 bc !  \ buffer counter, offset to start of staging area
 
 \ Use a jump table to handle replacement of dummy values, which should make 
 \ it easier to add other addresing forms for other processors
+\ TODO this is an unnecessary intermediate step, remove 
 create replacedummy  
       ' dummy>rel ,   ' dummy>addr , ' dummy>msb , ' dummy>lsb , ' dummy>bank ,            
       ' dummy>rel16 , ' dummy>addr24 ,            
@@ -368,8 +371,8 @@ variable e-flag   \ native (0) or emulation (1) CPU mode
 variable m-flag   \ 16-bit (0) or 8-bit (1) A register
 variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 
-\ switch emulation/native mode, requires combined command ("emulation mode")
-\ use these commands instead of coding the instructions directly
+\ switch emulation/native mode. Use these commands instead of coding 
+\ the instructions directly
 : emulated  ( -- )  true e-flag !  38 b, 0fb b, ;  \ CLC 
 : native  ( -- )  false e-flag !  18 b, 0fb b, ;  \ SEC 
 
@@ -479,22 +482,8 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 \ OPCODES F0 - FF 
 0f0 twig beq      0f1 2byte sbc.diy  0f2 2byte sbc.di   0f3 2byte sbc.siy
 0f4 3byte phe.#   0f5 2byte sbc.dx   0f6 2byte inc.dx   0f7 2byte sbc.dily
-0f8 1byte sed     0f9 3byte sbc.y    0fa 1byte plx      0fb 1byte xce
+0f8 1byte sed     0f9 3byte sbc.y    0fa 1byte plx      ( 0fb xce see below )
 0fc 3byte jsr.xi  0fd 3byte sbc.x    0fe 3byte inc.x    0ff 4byte sbc.lx
-
-
-\ SYNONYMS 
-\ We use systematic names ("jmp.l") where WDC has their own opcodes ("JML").
-\ For people who insist on the strange opcodes, we define the WDC codes as
-\ synonyms
-
-  22 4byte jsl     \ jsr.l
-  5c 3byte jml     \ jmp.l
-  62 2byte per     \ phe.r   
-  6b 1byte rtl     \ rts.l 
-  82 bigtwig brl   \ bra.l 
- 0d4 2byte pei     \ phe.i
- 0f4 3byte pea     \ phe.# 
 
 
 \ 8/16-BIT HYBRID INSTRUCTIONS
@@ -537,6 +526,30 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
    ['] cpy.#16 is cpy.#  ['] cpx.#16 is cpx.# ;
 
 : axy16defines ( -- )  a16defines  xy16defines ;
+
+
+\ SPECIAL OPCODES: We define these outside of the normal table 
+\ above so we can include special checks
+
+\ xce: Check if previous command was either CLC or SEC
+: xce ( -- ) 
+   0fb b,
+   bc @  2 -  staging  +  \ get address of previous instruction
+   c@ dup               
+      18 = invert  swap  38 = invert  and
+      if ." Warning: No CLC or SEC before XCE in byte " lc . cr then ; 
+
+
+\ SYNONYMS: We use systematic names ("jmp.l") where WDC defines 
+\ distinct opcodes ("JML"). For people who insist on these, we
+\ we define the WDC codes as synonyms
+  22 4byte jsl     \ jsr.l
+  5c 3byte jml     \ jmp.l
+  62 2byte per     \ phe.r   
+  6b 1byte rtl     \ rts.l 
+  82 bigtwig brl   \ bra.l 
+ 0d4 2byte pei     \ phe.i
+ 0f4 3byte pea     \ phe.# 
 
 
 \ Switch to 8/16 bit with SEP/REP instructions 
