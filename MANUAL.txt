@@ -6,7 +6,7 @@ This version: 28. June 2015
 
 TL;DR
 
-This is a cross-assembler for the 65816 8/16-bit hybrid CPU. 
+This is a one-pass cross-assembler for the 65816 8/16-bit hybrid CPU. 
 
   - it is written in modern ANSI-orientated Forth (gforth 0.7).
   - its syntax ("Typist's Assembler Format") is optimized for ten-finger
