@@ -123,6 +123,25 @@ There is no comma or other separater. The assembler assumes source and destinati
 
 
 
+CALLING THE ASSEMBLER
+
+Start gforth with extra memory, something like 
+
+        gforth -m 1G 
+
+Then, INCLUDE the assembler: 
+
+        include tasm65816.fs
+
+Do the same with your source file, in this case example.fs
+
+        include example.fs
+
+You will be left with ( addr u ) on the stack, describing the beginning of the machine code and the number of bytes in it. 
+
+
+
+
 EXAMPLES
 
 Included in this package are two larger example files: 
@@ -222,9 +241,9 @@ MODE SWITCHES
 
 The 65816 is a hybrid processor that has an "emulation" mode, where it pretends to be an 8-bit 6502, and a "native" mode, where the A, X, and Y registers can be switched to 16 bits. We start off in emulation mode. To switch modes, use the commands
 
-        EMULATION MODE
+        EMULATED
 or
-        NATIVE MODE
+        NATIVE 
 
 These encode the SEC XCE and CLC XCE sequences respectively. You could code these instructions by hand. However, using these built-in commands lets the assembler know which mode it is supposed to be in. 
 
@@ -276,15 +295,18 @@ As you can tell from the examples, labels are prefixed with "->" ("-->" would ha
 
 (When choosing a loop label name, remember that LOOP is already taken by Forth itself, as are REPEAT, BEGIN, and AGAIN.) 
 
-Forward branches are a bit more complicated, because internally the assembler has to create a list of unresolved references until the actual location of the label is known (a well-defined problem with single-pass assemblers). We deal with this by putting a special instruction at the start of the lines with forward references: "J>" for jumps (absolute addressing) and "B>" for branches (relative addressing). 
+Forward branches are a bit more complicated, because internally the assembler has to create a list of unresolved references until the actual location of the label is known (a well-defined problem with single-pass assemblers). We deal with this by declaring labels before we use them with the word FORESEE. 
 
-           j> frog jsr 
+           forsee frog 
+           forsee dogs
+
+              frog jsr 
                    nop
 
-           j> frog jsr 
+              frog jsr.l 
                    nop
 
-           b> dogs bra
+              dogs bra
                    nop
 
    -> dogs         brk 
@@ -296,6 +318,10 @@ Note that by convention, there is one space between the "J>" or "B>" instruction
 
 To access the most significant byte of a unresolved address referenced by a
 label, we use "MSB>", for the least significant byte we use "LSB>", for the bank we need "BANK>". For example, let's say the subroutine PRTSTR prints a zero-terminated string with the address in $00 and $01
+
+TODO CHECK THIS
+
+      foresee truthstr
 
      lsb> truthstr lda.#   
                 00 sta.d
@@ -333,22 +359,6 @@ As stated, the J> and such instructions are separated by one space from the targ
 The first instructions are still "middle justified" with the first opcode starting 20 spaces in. 
 
 
-
-CALLING THE ASSEMBLER
-
-Start gforth with extra memory, something like 
-
-        gforth -m 1G 
-
-Then, INCLUDE the assembler: 
-
-        include tasm65816.fs
-
-Do the same with your source file, in this case example.fs
-
-        include example.fs
-
-You will be left with ( addr u ) on the stack, describing the beginning of the machine code and the number of bytes in it. 
 
 
 ANYTHING ELSE?

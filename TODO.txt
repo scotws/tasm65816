@@ -5,5 +5,6 @@ This version: 22. June 2015
 
 This is ALPHA software, so not much works at this point, and less is tested. 
 
-The next steps are probably going to be removing the jump table for replacing dummy values during unresolved references, and getting rid of B> and such in favor of a system that requires less typing.
+- Change code so that individual instructions can have more specialized functions, such as XCE checking to see if previous instruction was either CLC or SEC
+- Get rid of various branching/jumping commands to future labels, and replace them by one generic version
 
