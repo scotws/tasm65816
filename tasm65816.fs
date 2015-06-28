@@ -414,7 +414,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 3c 3byte bit.x     3d 3byte and.x     3e 3byte rol.x     3f 4byte and.lx
 
 \ OPCODES 40 - 4F 
-40 1byte rti       41 2byte eor.dxi   42 2byte wdm       43 2byte eor.s
+40 1byte rti       41 2byte eor.dxi   ( 42 see below )   43 2byte eor.s
 44 blkmov mvp      45 2byte eor.d     46 2byte lsr.d     47 2byte eor.dil
 48 1byte pha       ( 49 see below )   4a 1byte lsr.a     4b 1byte phk
 4c 3byte jmp       4d 3byte eor       4e 3byte lsr       4f 4byte eor.l
@@ -482,7 +482,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 \ OPCODES F0 - FF 
 0f0 twig beq      0f1 2byte sbc.diy  0f2 2byte sbc.di   0f3 2byte sbc.siy
 0f4 3byte phe.#   0f5 2byte sbc.dx   0f6 2byte inc.dx   0f7 2byte sbc.dily
-0f8 1byte sed     0f9 3byte sbc.y    0fa 1byte plx      ( 0fb xce see below )
+0f8 1byte sed     0f9 3byte sbc.y    0fa 1byte plx      ( fb xce see below )
 0fc 3byte jsr.xi  0fd 3byte sbc.x    0fe 3byte inc.x    0ff 4byte sbc.lx
 
 
@@ -537,7 +537,12 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
    bc @  2 -  staging  +  \ get address of previous instruction
    c@ dup               
       18 = invert  swap  38 = invert  and
-      if ." Warning: No CLC or SEC before XCE in byte " lc . cr then ; 
+      if cr ." Warning: No CLC or SEC before XCE in byte " lc . cr then ; 
+
+\ wdm: Warn if we encounter this command
+: wdm ( b -- ) 
+   42 b, b, 
+   cr ." Warning: WDM instruction encountered in byte " lc . cr ; 
 
 
 \ SYNONYMS: We use systematic names ("jmp.l") where WDC defines 

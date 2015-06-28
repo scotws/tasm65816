@@ -44,7 +44,6 @@ Like all Forth, we use postfix notation (aka "ass-backwards"). We start with the
 The new opcodes are justified along the space between them and the operand. 
 Note we don't have to use "$", "%" or "#" for the number formats because we can use HEX, BINARY, and DECIMAL from normal Forth. The complete list of addressing modes for the 65816 is: 
 
-
     MODE                      WDC SYNTAX       TYPIST'S SYNTAX
 
     implied                   dex                    dex
@@ -295,18 +294,15 @@ As you can tell from the examples, labels are prefixed with "->" ("-->" would ha
 
 (When choosing a loop label name, remember that LOOP is already taken by Forth itself, as are REPEAT, BEGIN, and AGAIN.) 
 
-Forward branches are a bit more complicated, because internally the assembler has to create a list of unresolved references until the actual location of the label is known (a well-defined problem with single-pass assemblers). We deal with this by declaring labels before we use them with the word FORESEE. 
+Forward branches are a bit more complicated, because internally the assembler has to create a list of unresolved references until the actual location of the label is known (a well-defined problem with single-pass assemblers). We deal with this by declaring labels before we use them with special commands, J>, JL> (for long variants) B>, and BL>.
 
-           forsee frog 
-           forsee dogs
-
-              frog jsr 
+           j> frog jsr 
                    nop
 
-              frog jsr.l 
+          jl> frog jsr.l 
                    nop
 
-              dogs bra
+           b> dogs bra
                    nop
 
    -> dogs         brk 
@@ -316,12 +312,10 @@ Forward branches are a bit more complicated, because internally the assembler ha
 
 Note that by convention, there is one space between the "J>" or "B>" instruction and the label name. After the label has been defined with "->", we can access it without any further hassle. Because of the way forward references are handled, it is easier to deal with strings and subroutines if they are defined before the main code. 
 
+(This is a really annoying way to do things, so we are looking to change this in future versions.)
+
 To access the most significant byte of a unresolved address referenced by a
 label, we use "MSB>", for the least significant byte we use "LSB>", for the bank we need "BANK>". For example, let's say the subroutine PRTSTR prints a zero-terminated string with the address in $00 and $01
-
-TODO CHECK THIS
-
-      foresee truthstr
 
      lsb> truthstr lda.#   
                 00 sta.d
@@ -359,6 +353,15 @@ As stated, the J> and such instructions are separated by one space from the targ
 The first instructions are still "middle justified" with the first opcode starting 20 spaces in. 
 
 
+WARNINGS
+
+Since this is a primtive, one-pass assembler, there are not too many things it checks for and even fewer optimizations. Currently it:
+
+- Checks for the WDM instruction ($42), as this probably is some sort of an
+  error
+- Warns if XCE is not preceeded by CLC or SEC, because this might be trouble
+
+There are currently no optimizations suggested.
 
 
 ANYTHING ELSE?
