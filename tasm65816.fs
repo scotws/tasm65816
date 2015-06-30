@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 29. June 2015
+\ This version: 30. June 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -130,15 +130,6 @@ variable forwardref   forwardref clear
 
 
 \ TODO replace this
-\ replace dummy references to an RELATIVE offset byte in list of 
-\ unresolved forward references by BRA with the real offset.  
-: dummy>rel  ( buffer-offset -- )
-   dup staging +     ( b-off addr ) 
-   bc @              ( b-off addr bc ) 
-   rot -  1-         ( addr 65off ) 
-   swap c! ; 
-
-\ TODO replace this
 \ replace dummy reference to the MOST SIGNIFICANT BYTE in a list of 
 \ forward references with the real MSB of the label
 : dummy>msb  ( buffer-offset -- ) 
@@ -159,6 +150,16 @@ variable forwardref   forwardref clear
    staging +  lc bank  ( addr bank ) 
    swap c! ; 
 
+
+\ TODO replace this
+\ replace dummy references to an RELATIVE offset byte in list of 
+\ unresolved forward references by BRA with the real offset.  
+: dummy>rel  ( buffer-offset -- )
+   dup staging +     ( b-off addr ) 
+   bc @              ( b-off addr bc ) 
+   rot -  1-         ( addr 65off ) 
+   swap c! ; 
+
 \ TODO replace this
 \ replace dummy references to an RELATIVE offset byte in list of 
 \ unresolved forward references by BRA.L with the real offset.  
@@ -172,28 +173,6 @@ variable forwardref   forwardref clear
    c!                ( msr addr ) 
    char+ c! ; 
 
-\ TODO replace this
-\ replace dummy references to an ABSOLUTE LONG address word in the list of 
-\ unresolved forward references by JMP.L/JSR.L with the real address. 
-\ Used by "->" once we know what the actual address is 
-\ We add the content of the dummy values to the later ones so we can do
-\ addition and subtraction on the label before we know what it is
-\ (eg. "jl> mylabel 1+ jmp" )  TODO This is horrible, rewrite
-: dummy>addr24  ( buffer-offset -- )  
-   staging +  dup c@  ( addr lsb )  
-   over char+         ( addr lsb addr+1 ) 
-   dup c@             ( addr lsb addr+1 msb ) 
-   swap char+ c@      ( addr lsb msb bank ) 
-   lsb/msb/bank>24    ( addr u ) 
-   lc +               ( addr 65addr ) 
-   dup lsb            ( addr 65addr lsb ) 
-   rot                ( 65addr lsb addr ) 
-   tuck               ( 65addr addr lsb addr ) 
-   c! char+           ( 65addr addr ) 
-   over msb           ( 65addr addr msb ) 
-   over c! char+      ( 65addr addr ) 
-   swap bank          ( addr bank ) 
-   swap c! ;      
 
 \ Handle forward unresolved references (future symbols) by either creating 
 \ a new linked list of locations in the staging area or by adding a new 
@@ -222,6 +201,7 @@ variable forwardref   forwardref clear
    bc+1 ,      \ save location of operand hole (address) 
    0 , ;       \ save space for type of link (xt) 
 
+
 \ Mark an unresolved future symbol (forward label reference) for branches
 \ and jumps. This is a generic declaration used for all variants. Pushes 0
 \ to stack as a dummy entry for the address, allowing modification of the
@@ -231,26 +211,29 @@ variable forwardref   forwardref clear
       0 ;         \ push dummy address on the stack
 
 
+\ --- JMP/JSR --- 
+
 \ Replace dummy references to an ABSOLUTE 16-bit address in the list of
 \ unresolved forward references with the real address (for JMP/JSR). Used 
 \ by "->" once we know what the actually address is
-: dummy>jmp/jsr  ( buffer-offset -- )
-   staging +  dup c@  ( addr ul ) 
-   over char+ c@      ( addr ul uh ) 
+: dummy>abs  ( buffer-offset -- )
+   staging +  dup c@  ( addr lsb ) 
+   over char+ c@      ( addr lsb msb ) 
    lsb/msb>16         ( addr u ) 
-   lc +  16>msb/lsb   ( addr 65addr-h 65addr-l ) 
-   rot tuck           ( 65addr-h addr 65addr-l addr ) 
-   c!                 ( 65addr-h addr ) 
-   char+              ( 65addr-h addr+1 ) 
+   lc +  16>msb/lsb   ( addr msb lsb ) 
+   rot tuck           ( msb addr lsb addr ) 
+   c!                 ( msb addr ) 
+   char+              ( msb addr+1 ) 
    c! ; 
 
-\ Handle ABSOLUTE jumps, including unresolved forwards references
+\ Handle ABSOLUTE JUMPS, including unresolved forwards references
+\ TODO merge this with JSR 
 : jmp ( addr|dummy -- ) 
    forwardref? if 
       \ We're dealing with an unresolved forward reference here
       \ so we need to complete the entry
       forwardref @       ( dummy curr )   \ location of xt slot
-      ['] dummy>jmp/jsr  ( dummy curr+2 xt ) 
+      ['] dummy>abs      ( dummy curr+2 xt ) 
       swap !             ( dummy )        \ save xt in link entry
       forwardref clear   ( dummy )        \ reset flag 
    then 
@@ -258,6 +241,90 @@ variable forwardref   forwardref clear
    \ Save the opcode for JMP, and then either the 16-bit address provided
    \ or the dummy address from the unresolved forward reference
    4c b,  w, ; 
+
+\ Handle ABSOLUTE SUBROUTINE CALLS, including unresolved forwards references
+\ TODO merge this with JMP 
+: jsr ( addr|dummy -- ) 
+   forwardref? if 
+      \ We're dealing with an unresolved forward reference here
+      \ so we need to complete the entry
+      forwardref @       ( dummy curr )   \ location of xt slot
+      ['] dummy>abs      ( dummy curr+2 xt ) 
+      swap !             ( dummy )        \ save xt in link entry
+      forwardref clear   ( dummy )        \ reset flag 
+   then 
+   
+   \ Save the opcode for JMP, and then either the 16-bit address provided
+   \ or the dummy address from the unresolved forward reference
+   20 b,  w, ; 
+
+
+\ --- JMP.L/JSR.L --- 
+
+\ Replace dummy references to an ABSOLUTE 24-bit address in the list of
+\ unresolved forward references with the real address (JMP.L/JSR.L). Used 
+\ by "->" once we know what the actually address is
+\ TODO This is horribly, horribly ugly, see if we can clean this up 
+: dummy>abs.l  ( buffer-offset -- )  
+
+   \ step one: assemble 65addr from dummy parts
+   staging +  dup c@  ( addr lsb )  
+   over char+         ( addr lsb addr+1 ) 
+   dup c@             ( addr lsb addr+1 msb ) 
+   swap char+ c@      ( addr lsb msb bank ) 
+   lsb/msb/bank>24    ( addr u ) 
+
+   \ step two: add current location
+   lc +               ( addr 65addr ) 
+
+   \ step three: save 24-bit address in little-endian 
+   dup >r             ( addr 65addr )   ( R: 65addr) 
+   lsb over           ( addr lsb addr ) ( R: 65addr) 
+   c! char+ r>        ( addr+1 65addr ) 
+   dup >r             ( addr+1 65addr ) ( R: 65addr)
+   msb over           ( addr+1 msb addr+1 ) ( R: 65addr) 
+   c! char+ r>        ( addr+2 65addr )
+   bank swap c! ; 
+
+
+\ Handle ABSOLUTE LONG JUMPS, including unresolved forwards references
+\ TODO merge this with JSR.L 
+: jmp.l ( addr|dummy -- ) 
+   forwardref? if 
+      \ We're dealing with an unresolved forward reference here
+      \ so we need to complete the entry
+      forwardref @       ( dummy curr )   \ location of xt slot
+      ['] dummy>abs.l    ( dummy curr+2 xt ) 
+      swap !             ( dummy )        \ save xt in link entry
+      forwardref clear   ( dummy )        \ reset flag 
+   then 
+   
+   \ Save the opcode for JMP, and then either the 16-bit address provided
+   \ or the dummy address from the unresolved forward reference
+   5c b, lw, ; 
+
+\ Handle ABSOLUTE LONG SUBROUTINE CALLS, including unresolved forward 
+\ references
+\ TODO merge this with JMP.L 
+: jsr.l ( addr|dummy -- ) 
+   forwardref? if 
+      \ We're dealing with an unresolved forward reference here
+      \ so we need to complete the entry
+      forwardref @       ( dummy curr )   \ location of xt slot
+      ['] dummy>abs.l    ( dummy curr+2 xt ) 
+      swap !             ( dummy )        \ save xt in link entry
+      forwardref clear   ( dummy )        \ reset flag 
+   then 
+   
+   \ Save the opcode for JMP, and then either the 16-bit address provided
+   \ or the dummy address from the unresolved forward reference
+   22 b,  lw, ; 
+
+\ HIER HIER 
+
+
+
+
 
 \ TODO figure out what to do with this
 \ Create an unresolved forward reference to the MOST SIGNIFICANT BYTE
@@ -312,24 +379,26 @@ variable forwardref   forwardref clear
 
    \ One way or another, we now (re)define the label. NEXTNAME is specific 
    \ to Gforth and provides a string for a defining word such as CREATE
-   drop       ( addr u ) 
-   nextname create lc , 
-      does> @ ; 
+   drop nextname  create lc ,  does> @ ; 
 
 
 \ -----------------------
 \ OPCODE HELPER FUNCTIONS
 
-\ caclulate short branch  (8-bit, BRA etc) 
+\ caclulate short branch (8-bit, BRA etc). This assumes we are given 
+\ the address of where we branch to, not the offset, which we calculate. 
+\ The assumption is that the branch will always be used with labels. 
 : makeshortbranch ( 65addr -- ) 
    lc -  1-
    dup short-branchable?  if b, 
       else  ." Error: Short branch out of range, lc: " lc .  
             space ." bc: " bc . cr  drop then ; 
 
-\ caclulate long branch  (16-bit, BRA.L ) 
+\ caclulate long branch (16-bit, BRA.L ) This assumes we are given 
+\ the address of where we branch to, not the offset, which we calculate. 
+\ The assumption is that the branch will always be used with labels. 
 : makelongbranch ( 65addr -- ) 
-   lc - 2 -  
+   lc -  2 -  
    dup long-branchable?  if w, 
       else  ." Error: Long branch out of range, lc: " lc .  
             space ." bc: " bc . cr  drop then ; 
@@ -337,11 +406,11 @@ variable forwardref   forwardref clear
 \ format and fix sequence of operands for the block move commands
 \ MVN and MVP: Assembler is "src dest mvn", and machine code sequence
 \ is "<opc> <dest> <src>". 
-: clipblocks ( src dest -- )  lsb b, lsb b, ; 
+: saveblocks ( src dest -- )  lsb b, lsb b, ; 
 
   
 \ -----------------------
-\ DEFINE OPCODES 
+\ DEFINE OPCODES: WORK ROUTINES 
 
 \ handle GENERIC opcodes
 : 1byte  ( opcode -- ) ( -- ) 
@@ -374,11 +443,11 @@ variable forwardref   forwardref clear
 \ operands in machine code and assembler. BLOCK AND MOVE are reserved by Forth
 : blkmov ( opcode -- ) ( c c -- ) 
    create c,
-   does> c@ b, clipblocks ; 
+   does> c@ b, saveblocks ; 
 
 
 \ -----------------------
-\ HANDLE REGISTER SIZE AND CPU MODES
+\ REGISTER SIZE AND CPU MODES
 
 variable e-flag   \ native (0) or emulation (1) CPU mode
 variable m-flag   \ 16-bit (0) or 8-bit (1) A register
@@ -398,9 +467,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 
 
 \ -----------------------
-\ OPCODE TABLES 
-\ Brute force listing of each possible opcode. Leave undefined entries
-\ empty so it is easier to port this program to other processors
+\ OPCODE TABLE 
 
 00 2byte brk       01 2byte ora.dxi    02 2byte cop      03 2byte ora.s
 04 2byte tsb.d     05 2byte ora.d      06 2byte asl.d    07 2byte ora.dil
@@ -412,7 +479,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 18 1byte clc       19 3byte ora.y      1a 1byte inc.a    1b 1byte tcs
 1c 3byte trb       1d 3byte ora.x      1e 3byte asl.x    1f 4byte ora.lx
 
-20 3byte jsr       21 2byte and.dxi    22 4byte jsr.l    23 2byte and.s
+( 20 see above )   21 2byte and.dxi    22 4byte jsr.l    23 2byte and.s
 24 2byte bit.d     25 2byte and.d      26 2byte rol.d    27 2byte and.dil
 28 1byte plp       ( 29 see below )    2a 1byte rol.a    2b 1byte pld
 2c 3byte bit       2d 3byte and. ( !)  2e 3byte rol      2f 4byte and.l
@@ -483,9 +550,8 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 0fc 3byte jsr.xi  0fd 3byte sbc.x     0fe 3byte inc.x   0ff 4byte sbc.lx
 
 
-\ 8/16-BIT HYBRID INSTRUCTIONS
-\ We have twelve instructions that need to be handled separately
-\ depending on the size of the Accumulator and/or X/Y Registers
+\ 8/16-BIT HYBRID INSTRUCTIONS: We have twelve instructions that need to be 
+\ handled separately depending on the size of A and/or the X/Y Registers
 
  09 2byte ora.#8     09 3byte ora.#16    defer ora.# 
  29 2byte and.#8     29 3byte and.#16    defer and.# 
@@ -526,7 +592,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 
 
 \ SPECIAL OPCODES: We define these outside of the normal table 
-\ above so we can include special checks
+\ above so we can include special checks. 
 
 \ xce: Check if previous command was either CLC or SEC
 : xce ( -- ) 
