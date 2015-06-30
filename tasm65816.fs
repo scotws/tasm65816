@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 28. June 2015
+\ This version: 29. June 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -20,7 +20,8 @@
 hex
 
 \ Initial target address on 65816 machine. This is a 24-bit number. 
-\ If user provides no initial address, we use 0000
+\ If user provides no initial address, we use 0000, which on the 65816
+\ allows relocation by bank. 
 variable lc0  0 lc0 ! 
 
 0ffffff 1+ constant maxmemory     \ 65816 has 24 bit address space
@@ -33,7 +34,7 @@ variable bc  0 bc !
 
 
 \ -----------------------
-\ LOW LEVEL AND HELPER INSTRUCTIONS
+\ LOW LEVEL AND HELPER DIRECTIVES
 
 \ Return single bytes from a 16- or 24-bit number; assumes HEX
 : lsb  ( u -- u8 )  0ff and ; 
@@ -87,7 +88,7 @@ variable bc  0 bc !
 
 
 \ -----------------------
-\ HIGH LEVEL ASSEMBLER INSTRUCTIONS
+\ HIGH LEVEL DIRECTIVES
 
 \ set intial target address on 65816 machine. If no such command is
 \ present in the source code, we start assembling at 000000
@@ -114,26 +115,21 @@ variable bc  0 bc !
 \ -----------------------
 \ LABELS 
 
-\ get current offset to start of staging area, adding one further byte 
-\ for the JSR/JMP/BRA opcode in label definitions
-: bc+1  ( -- offset)  bc @ 1+ ; 
+\ calculate offset to the start of the staging area for the operand of
+\ JMP/JSR/BRA etc opcodes. In other words, skip one byte to leave space
+\ for these opcodes
+: bc+1  ( -- offset )  bc @ 1+ ; 
 
-\ replace dummy references to an ABSOLUTE address word in the list of 
-\ unresolved forward references by JMP/JSR with the real address. 
-\ Used by "->" once we know what the actual address is 
-\ We add the content of the dummy values to the later ones so we can do
-\ addition and subtraction on the label before we know what it is
-\ (eg. "j> mylabel 1+ jmp" ) 
-: dummy>addr  ( buffer-offset -- )
-   staging +  dup c@  ( addr ul ) 
-   over char+ c@      ( addr ul uh ) 
-   lsb/msb>16         ( addr u ) 
-   lc +  16>msb/lsb   ( addr 65addr-h 65addr-l ) 
-   rot tuck           ( 65addr-h addr 65addr-l addr ) 
-   c!                 ( 65addr-h addr ) 
-   char+              ( 65addr-h addr+1 ) 
-   c! ; 
+\ Use flag to tell branch or jump instruction that its label is an 
+\ unresolved future reference that it needs to take care of. If value is
+\ zero, there is no forward reference, otherwise the variable holds the 
+\ address of the incomplete entry in the linked list of this reference
+: clear ( -- ) 0 swap ! ; 
+variable forwardref   forwardref clear
+: forwardref? ( -- f )  forwardref @  0<> ; 
 
+
+\ TODO replace this
 \ replace dummy references to an RELATIVE offset byte in list of 
 \ unresolved forward references by BRA with the real offset.  
 : dummy>rel  ( buffer-offset -- )
@@ -142,24 +138,28 @@ variable bc  0 bc !
    rot -  1-         ( addr 65off ) 
    swap c! ; 
 
+\ TODO replace this
 \ replace dummy reference to the MOST SIGNIFICANT BYTE in a list of 
 \ forward references with the real MSB of the label
 : dummy>msb  ( buffer-offset -- ) 
    staging +  lc msb  ( addr msb ) 
    swap c! ; 
 
+\ TODO replace this
 \ replace dummy reference to the LEAST SIGNIFICANT BYTE in a list of 
 \ forward references with the real LSB of the label
 : dummy>lsb  ( buffer-offset -- ) 
    staging +  lc lsb  ( addr lsb ) 
    swap c! ; 
 
+\ TODO replace this
 \ replace dummy reference to the BANK BYTE in a list of forward 
 \ references with the real LSB of the label
 : dummy>bank  ( buffer-offset -- ) 
    staging +  lc bank  ( addr bank ) 
    swap c! ; 
 
+\ TODO replace this
 \ replace dummy references to an RELATIVE offset byte in list of 
 \ unresolved forward references by BRA.L with the real offset.  
 : dummy>rel16  ( buffer-offset -- ) 
@@ -172,6 +172,7 @@ variable bc  0 bc !
    c!                ( msr addr ) 
    char+ c! ; 
 
+\ TODO replace this
 \ replace dummy references to an ABSOLUTE LONG address word in the list of 
 \ unresolved forward references by JMP.L/JSR.L with the real address. 
 \ Used by "->" once we know what the actual address is 
@@ -195,51 +196,78 @@ variable bc  0 bc !
    swap c! ;      
 
 
-\ Use a jump table to handle replacement of dummy values, which should make 
-\ it easier to add other addresing forms for other processors
-\ TODO this is an unnecessary intermediate step, remove 
-create replacedummy  
-      ' dummy>rel ,   ' dummy>addr , ' dummy>msb , ' dummy>lsb , ' dummy>bank ,            
-      ' dummy>rel16 , ' dummy>addr24 ,            
 
 
-\ Handle forward unresolved references by either creating a new linked list
-\ of locations in the staging area where they need to be inserted later, or
-\ by adding a new entry to the list. This is a common routine for all 
-\ forward references, which add their own offsets to the dummy replacement 
-\ jump table and provide different dummy addresses for the following 
-\ instructions (JSR/JMP, BRA, MSB>, LSB> etc)
+
+
+\ Handle forward unresolved references (future symbols) by either creating 
+\ a new linked list of locations in the staging area or by adding a new 
+\ entry an existing list. Each entry is composed of 1) a link to the next 
+\ entry in the list (a zero marks the tail), 2) the offset to the start of
+\ the staging area where the real address will later go, and 3) space for 
+\ the branch or jump instruction to save a reference (xt) to its specialized
+\ routine that will later create the actual address. New entries are added
+\ at the head
 : addlabel  ( "name" -- ) 
    parse-name 2dup find-name    ( addr u nt|0 )
-   dup if
-      \ address already defined, add another entry to the list 
-      name>int    ( addr u xt )  \ gforth uses "name token" (nt), need xt
-      >body       ( addr u l-addr ) 
-      bc+1  swap  ( addr u offset l-addr ) 
-      dup @       ( addr u offset l-addr old ) 
-      swap here   ( addr u offset old l-addr here ) 
-      swap !      ( addr u offset old )
-      , ,         ( addr u )  \ save link to previous entry and data
-      2drop       \ we didn't need name string after all
-   else 
-     \ new name, create new list. NEXTNAME is specific to 
-     \ gforth and provides a string for a defining word such as CREATE
-     drop nextname create 0 , bc+1 , 
+   here forwardref !    \ save location of this entry for jmp/bra etc
+
+   dup if   \ address already defined, add another entry to the list 
+      name>int    ( addr u xt )     \ Gforth uses "name token" (nt), need xt
+      >body       ( addr u l-addr ) \ get location of this symbol
+      dup @       ( addr u l-addr curr ) \ get link to current entry
+      here        ( addr u l-addr curr new ) 
+      rot !       ( addr u curr )  \ save link to new entry in old entry
+      ,           ( addr u )  \ save link to old entry in new entry
+      2drop       \ don't need name string 
+   else     \ new name, create new list. NEXTNAME is specific to 
+            \ Gforth and provides a string for a defining word such as CREATE
+     drop nextname create  
+     0 ,          \ mark tail of new linked list with zero
    then ; 
 
- \ Create an unresolved RELATIVE forward label reference (for branches) 
-: b>  ( "name" -- addr )  
-   addlabel 
-   0 ,           \ save zero as offset to replacement jump table 
-   lc ;          \ use lc as dummy so we stay inside branch range 
+\ Mark an unresolved future symbol (forward label reference) for branches
+\ and jumps. This is a generic declaration used for all variants. Pushes 0
+\ to stack as a dummy entry for the address, allowing modification of the
+\ label even when unknown (eg. "<? lower 1+  jmp") 
+: <? ( "name" -- addr )  addlabel 
+      bc+1 ,      \ save location of operand hole (address) 
+      0 ,         \ save space for type of link (xt) 
+      0 ;         \ push dummy address on the stack
 
-\ Create an unresolved ABSOLUTE forward label reference (for jumps)
-: j> ( "name" -- addr )
-   addlabel 
-   cell ,        \ save cell size as offset to the replacement jump table
-   0 ;           \ save 0000 as dummy so we can do addition and subtraction
-                 \ on label even if we don't know what it is yet
 
+\ Replace dummy references to an ABSOLUTE 16-bit address in the list of
+\ unresolved forward references with the real address (for JMP/JSR). Used 
+\ by "->" once we know what the actually address is
+: dummy>jmp/jsr  ( buffer-offset -- )
+   ." Reached dummy>jmp/jsr " \ TODO TESTING
+   staging +  dup c@  ( addr ul ) 
+   over char+ c@      ( addr ul uh ) 
+   lsb/msb>16         ( addr u ) 
+   lc +  16>msb/lsb   ( addr 65addr-h 65addr-l ) 
+   rot tuck           ( 65addr-h addr 65addr-l addr ) 
+   c!                 ( 65addr-h addr ) 
+   char+              ( 65addr-h addr+1 ) 
+   c! ; 
+
+\ Handle ABSOLUTE jumps, including unresolved forwards references
+: jmp ( addr|dummy -- ) 
+   forwardref? if 
+      \ We're dealing with an unresolved forward reference here
+      \ so we need to complete the entry
+      forwardref @       ( dummy curr ) 
+      2 cells  +         ( dummy curr+2 ) \ xt slot in list entry
+      ['] dummy>jmp/jsr  ( dummy curr+2 xt ) 
+      swap !             ( dummy )        \ save xt in link entry
+      forwardref clear   ( dummy )        \ reset flag 
+   then 
+   
+   \ Save the opcode for JMP, and then either the 16-bit address provided
+   \ or the dummy address from the unresolved forward reference
+   4c b,  w, ; 
+
+
+\ TODO figure out what to do with this
 \ Create an unresolved forward reference to the MOST SIGNIFICANT BYTE
 \ of an unresolved forward label reference
 : msb> ( "name" -- adr ) 
@@ -247,6 +275,7 @@ create replacedummy
    cell 2* ,     \ save 2* cell size as offset to the replacement jump table
    0 ;           \ save 0000 as dummy value 
 
+\ TODO figure out what to do with this
 \ Create an unresolved forward reference to the LEAST SIGNIFICANT BYTE
 \ of an unresolved forward label reference
 : lsb> ( "name" -- adr ) 
@@ -254,6 +283,7 @@ create replacedummy
    cell 3 * ,    \ save 3* cell size as offset to the replacement jump table
    0 ;           \ save 0000 as dummy value 
 
+\ TODO figure out what to do with this
 \ Create an unresolved forward reference to the BANK BYTE
 \ of an unresolved forward label reference
 : bank> ( "name" -- adr ) 
@@ -261,18 +291,14 @@ create replacedummy
    cell 4 * ,    \ save 4* cell size as offset to the replacement jump table
    0 ;           \ save 0000 as dummy value 
 
-\ Create an unresolved RELATIVE LONG forward label reference (for branches) 
-: bl>  ( "name" -- addr )  
-   addlabel 
-   cell 5 * ,    \ save 5* cell size as offset to replacement jump table 
-   lc  ;         \ use lc as dummy so we stay inside branch range 
 
-\ Create an unresolved ABSOLUTE LONG forward label reference (for jumps)
-: jl> ( "name" -- addr ) 
-   addlabel 
-   cell 6 * ,    \ save 6* cell size as offset to replacement jump table 
-   0 ;           \ save 0000 as dummy so we can do addition and subtraction
-                 \ on label even if we don't know what it is yet
+
+\ Use a jump table to handle replacement of dummy values, which should make 
+\ it easier to add other addresing forms for other processors
+\ TODO this is an unnecessary intermediate step, remove 
+create replacedummy  
+      ' dummy>rel ,   ' dummy>msb , ' dummy>lsb , ' dummy>bank ,            
+      ' dummy>rel16 , ' dummy>addr24 ,            
 
 
 \ Define a label. Assume that the user knows what they are doing and
@@ -282,27 +308,31 @@ create replacedummy
 \ is used by old block syntax of Forth
 : ->  ( "name" -- )
    parse-name 2dup find-name    ( addr u nt|0 )
-
    \ if we have already used that name, it must be an unresolved 
    \ forward reference. Now we can replace the dummy values we have been 
    \ collecting with the real stuff 
    dup if      
       name>int    ( addr u xt )  \ gforth uses "name token" (nt), need xt
       >body       ( addr u l-addr ) 
+
       \ walk through the list and replace dummy addresses and offsets
       begin
-         dup      ( addr u l-addr l-addr ) 
+         dup      ( addr u l-addr l-addr ) \ stops if l-addr is zero 
       while 
-         dup cell+ @         ( addr u l-addr data ) 
-         over 2 cells +  @   ( addr u l-addr data cell|0 ) 
-         replacedummy +  @  execute
-         @                   ( addr u next-l-addr ) 
+         dup cell+ @   ( addr u l-addr offset ) 
+         over          ( addr u l-addr offset l-addr )  
+         2 cells +  @  ( addr u l-addr offset xt ) 
+         execute       ( addr u l-addr ) 
+         @             ( addr u next-l-addr ) 
       repeat 
-   then       ( addr u ) 
+   then
 
-   \ (re)define the label
-   drop nextname create lc , 
+   \ One way or another, we now (re)define the label. NEXTNAME is specific 
+   \ to Gforth and provides a string for a defining word such as CREATE
+   drop       ( addr u ) 
+   nextname create lc , 
       does> @ ; 
+
 
 \ -----------------------
 \ OPCODE HELPER FUNCTIONS
@@ -365,7 +395,7 @@ create replacedummy
 
 
 \ -----------------------
-\ HANDLE REGISTER SIZE STUFF
+\ HANDLE REGISTER SIZE AND CPU MODES
 
 variable e-flag   \ native (0) or emulation (1) CPU mode
 variable m-flag   \ 16-bit (0) or 8-bit (1) A register
@@ -389,101 +419,85 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 \ Brute force listing of each possible opcode. Leave undefined entries
 \ empty so it is easier to port this program to other processors
 
-\ OPCODES 00 - 0F 
-00 2byte brk       01 2byte ora.dxi   02 2byte cop      03 2byte ora.s
-04 2byte tsb.d     05 2byte ora.d     06 2byte asl.d    07 2byte ora.dil
-08 1byte php       ( 09 see below )   0a 1byte asl.a    0b 1byte phd
-0c 3byte tsb       0d 3byte ora       0e 3byte asl      0f 4byte ora.l
+00 2byte brk       01 2byte ora.dxi    02 2byte cop      03 2byte ora.s
+04 2byte tsb.d     05 2byte ora.d      06 2byte asl.d    07 2byte ora.dil
+08 1byte php       ( 09 see below )    0a 1byte asl.a    0b 1byte phd
+0c 3byte tsb       0d 3byte ora        0e 3byte asl      0f 4byte ora.l
 
-\ OPCODES 10 - 1F 
-10 twig bpl        11 2byte ora.diy   12 2byte ora.di   13 2byte ora.siy
-14 2byte trb.d     15 2byte ora.dx    16 2byte asl.dx   17 2byte ora.dily
-18 1byte clc       19 3byte ora.y     1a 1byte inc.a    1b 1byte tcs
-1c 3byte trb       1d 3byte ora.x     1e 3byte asl.x    1f 4byte ora.lx
+10 twig bpl        11 2byte ora.diy    12 2byte ora.di   13 2byte ora.siy
+14 2byte trb.d     15 2byte ora.dx     16 2byte asl.dx   17 2byte ora.dily
+18 1byte clc       19 3byte ora.y      1a 1byte inc.a    1b 1byte tcs
+1c 3byte trb       1d 3byte ora.x      1e 3byte asl.x    1f 4byte ora.lx
 
-\ OPCODES 20 - 2F 
-20 3byte jsr       21 2byte and.dxi   22 4byte jsr.l    23 2byte and.s
-24 2byte bit.d     25 2byte and.d     26 2byte rol.d    27 2byte and.dil
-28 1byte plp       ( 29 see below )   2a 1byte rol.a    2b 1byte pld
-2c 3byte bit       2d 3byte and. ( !) 2e 3byte rol      2f 4byte and.l
+20 3byte jsr       21 2byte and.dxi    22 4byte jsr.l    23 2byte and.s
+24 2byte bit.d     25 2byte and.d      26 2byte rol.d    27 2byte and.dil
+28 1byte plp       ( 29 see below )    2a 1byte rol.a    2b 1byte pld
+2c 3byte bit       2d 3byte and. ( !)  2e 3byte rol      2f 4byte and.l
 
-\ OPCODES 30 - 3F 
-30 twig bmi        31 2byte and.diy   32 2byte and.di   33 2byte and.siy
-34 2byte bit.dxi   35 2byte and.dx    36 2byte rol.dx   37 2byte and.dily
-38 1byte sec       39 3byte and.y     3a 1byte dec.a    3b 1byte tsc
-3c 3byte bit.x     3d 3byte and.x     3e 3byte rol.x    3f 4byte and.lx
+30 twig bmi        31 2byte and.diy    32 2byte and.di   33 2byte and.siy
+34 2byte bit.dxi   35 2byte and.dx     36 2byte rol.dx   37 2byte and.dily
+38 1byte sec       39 3byte and.y      3a 1byte dec.a    3b 1byte tsc
+3c 3byte bit.x     3d 3byte and.x      3e 3byte rol.x    3f 4byte and.lx
 
-\ OPCODES 40 - 4F 
-40 1byte rti       41 2byte eor.dxi   ( 42 see below )  43 2byte eor.s
-44 blkmov mvp      45 2byte eor.d     46 2byte lsr.d    47 2byte eor.dil
-48 1byte pha       ( 49 see below )   4a 1byte lsr.a    4b 1byte phk
-4c 3byte jmp       4d 3byte eor       4e 3byte lsr      4f 4byte eor.l
+40 1byte rti       41 2byte eor.dxi    ( 42 see below )  43 2byte eor.s
+44 blkmov mvp      45 2byte eor.d      46 2byte lsr.d    47 2byte eor.dil
+48 1byte pha       ( 49 see below )    4a 1byte lsr.a    4b 1byte phk
+( 4c see above)    4d 3byte eor        4e 3byte lsr      4f 4byte eor.l
 
-\ OPCODES 50 - 5F 
-50 twig bvc        51 2byte eor.diy   52 2byte eor.di   53 2byte eor.siy
-54 blkmov mvn      55 2byte eor.dx    56 2byte lsr.dx   57 2byte eor.dily
-58 1byte cli       59 3byte eor.y     5a 1byte phy      5b 1byte tcd
-5c 4byte jmp.l     5d 3byte eor.x     5e 3byte lsr.x    5f 4byte eor.lx
+50 twig bvc        51 2byte eor.diy    52 2byte eor.di   53 2byte eor.siy
+54 blkmov mvn      55 2byte eor.dx     56 2byte lsr.dx   57 2byte eor.dily
+58 1byte cli       59 3byte eor.y      5a 1byte phy      5b 1byte tcd
+5c 4byte jmp.l     5d 3byte eor.x      5e 3byte lsr.x    5f 4byte eor.lx
 
-\ OPCODES 60 - 6F 
-60 1byte rts       61 2byte adc.dxi   62 bigtwig phe.r  63 2byte adc.s
-64 2byte stz.d     65 2byte adc.d     66 2byte ror.d    67 2byte adc.dil
-68 1byte pla       ( 69 see below )   6a 1byte ror.a    6b 1byte rts.l
-6c 3byte jmp.i     6d 3byte adc       6e 3byte ror      6f 4byte adc.l
+60 1byte rts       61 2byte adc.dxi    62 bigtwig phe.r  63 2byte adc.s
+64 2byte stz.d     65 2byte adc.d      66 2byte ror.d    67 2byte adc.dil
+68 1byte pla       ( 69 see below )    6a 1byte ror.a    6b 1byte rts.l
+6c 3byte jmp.i     6d 3byte adc        6e 3byte ror      6f 4byte adc.l
 
-\ OPCODES 70 - 7F 
-70 twig bvs        71 2byte adc.diy   72 2byte adc.di   73 2byte adc.siy
-74 2byte stz.dx    75 2byte adc.dx    76 2byte ror.dx   77 2byte adc.dily
-78 1byte sei       79 3byte adc.y     7a 1byte ply      7b 1byte tdc
-7c 3byte jmp.xi    7d 3byte adc.x     7e 3byte ror.x    7f 4byte adc.lx
+70 twig bvs        71 2byte adc.diy    72 2byte adc.di   73 2byte adc.siy
+74 2byte stz.dx    75 2byte adc.dx     76 2byte ror.dx   77 2byte adc.dily
+78 1byte sei       79 3byte adc.y      7a 1byte ply      7b 1byte tdc
+7c 3byte jmp.xi    7d 3byte adc.x      7e 3byte ror.x    7f 4byte adc.lx
 
-\ OPCODES 80 - 8F 
-80 twig bra        81 2byte sta.dxi   82 bigtwig bra.l  83 2byte sta.s
-84 2byte sty.d     85 2byte sta.d     86 2byte stx.d    87 2byte sta.dil
-88 1byte dey       ( 89 see below )   8a 1byte txa      8b 1byte phb
-8c 3byte sty       8d 3byte sta       8e 3byte stx      8f 4byte sta.l
+80 twig bra        81 2byte sta.dxi    82 bigtwig bra.l  83 2byte sta.s
+84 2byte sty.d     85 2byte sta.d      86 2byte stx.d    87 2byte sta.dil
+88 1byte dey       ( 89 see below )    8a 1byte txa      8b 1byte phb
+8c 3byte sty       8d 3byte sta        8e 3byte stx      8f 4byte sta.l
 
-\ OPCODES 90 - 9F 
-90 twig bcc        91 2byte sta.diy   92 2byte sta.di   93 2byte sta.siy
-94 2byte sty.dx    95 2byte sta.dx    96 2byte stx.dy   97 2byte sta.dily
-98 1byte tya       99 3byte sta.y     9a 1byte txs      9b 1byte txy 
-9c 3byte stz       9d 3byte sta.x     9e 3byte stz.x    9f 4byte sta.lx
+90 twig bcc        91 2byte sta.diy    92 2byte sta.di   93 2byte sta.siy
+94 2byte sty.dx    95 2byte sta.dx     96 2byte stx.dy   97 2byte sta.dily
+98 1byte tya       99 3byte sta.y      9a 1byte txs      9b 1byte txy 
+9c 3byte stz       9d 3byte sta.x      9e 3byte stz.x    9f 4byte sta.lx
 
-\ OPCODES A0 - AF 
-( a0 see below )  0a1 2byte lda.dxi  ( a2 see below )  0a3 2byte lda.s
-0a4 2byte ldy.d   0a5 2byte lda.d    0a6 2byte ldx.d   0a7 2byte lda.dil
-0a8 1byte tay     ( a9 see below )   0aa 1byte tax     0ab 1byte plb
-0ac 3byte ldy     0ad 3byte lda      0ae 3byte ldx     0af 4byte lda.l
+( a0 see below )  0a1 2byte lda.dxi   ( a2 see below )  0a3 2byte lda.s
+0a4 2byte ldy.d   0a5 2byte lda.d     0a6 2byte ldx.d   0a7 2byte lda.dil
+0a8 1byte tay     ( a9 see below )    0aa 1byte tax     0ab 1byte plb
+0ac 3byte ldy     0ad 3byte lda       0ae 3byte ldx     0af 4byte lda.l
 
-\ OPCODES B0 - BF 
-0b0 twig bcs      0b1 2byte lda.diy  0b2 2byte lda.di  0b3 2byte lda.siy
-0b4 2byte ldy.dx  0b5 2byte lda.dx   0b6 2byte ldx.dy  0b7 2byte lda.dily
-0b8 1byte clv     0b9 3byte lda.y    0ba 1byte tsx     0bb 1byte tyx
-0bc 3byte ldy.x   0bd 3byte lda.x    0be 3byte ldx.y   0bf 4byte lda.lx
+0b0 twig bcs      0b1 2byte lda.diy   0b2 2byte lda.di  0b3 2byte lda.siy
+0b4 2byte ldy.dx  0b5 2byte lda.dx    0b6 2byte ldx.dy  0b7 2byte lda.dily
+0b8 1byte clv     0b9 3byte lda.y     0ba 1byte tsx     0bb 1byte tyx
+0bc 3byte ldy.x   0bd 3byte lda.x     0be 3byte ldx.y   0bf 4byte lda.lx
 
-\ OPCODES C0 - CF 
-( c0 see below )  0c1 2byte cmp.dxi  0c2 2byte rep     0c3 2byte cmp.s
-0c4 2byte cpy.d   0c5 2byte cmp.d    0c6 2byte dec.d   0c7 2byte cmp.dil
-0c8 1byte iny     ( c9 see below )   0ca 1byte dex     0cb 1byte wai
-0cc 3byte cpy     0cd 3byte cmp      0ce 3byte dec     0cf 4byte cmp.l
+( c0 see below )  0c1 2byte cmp.dxi   0c2 2byte rep     0c3 2byte cmp.s
+0c4 2byte cpy.d   0c5 2byte cmp.d     0c6 2byte dec.d   0c7 2byte cmp.dil
+0c8 1byte iny     ( c9 see below )    0ca 1byte dex     0cb 1byte wai
+0cc 3byte cpy     0cd 3byte cmp       0ce 3byte dec     0cf 4byte cmp.l
 
-\ OPCODES D0 - DF 
-0d0 twig bne      0d1 2byte cmp.diy  0d2 2byte cmp.di  0d3 2byte cmp.siy
-0d4 2byte phe.di  0d5 2byte cmp.dx   0d6 2byte dec.dx  0d7 2byte cmp.dily
-0d8 1byte cld     0d9 3byte cmp.y    0da 1byte phx     0db 1byte stp 
-0dc 3byte jmp.il  0dd 3byte cmp.x    0de 3byte dec.x   0df 4byte cmp.lx
+0d0 twig bne      0d1 2byte cmp.diy   0d2 2byte cmp.di  0d3 2byte cmp.siy
+0d4 2byte phe.di  0d5 2byte cmp.dx    0d6 2byte dec.dx  0d7 2byte cmp.dily
+0d8 1byte cld     0d9 3byte cmp.y     0da 1byte phx     0db 1byte stp 
+0dc 3byte jmp.il  0dd 3byte cmp.x     0de 3byte dec.x   0df 4byte cmp.lx
 
-\ OPCODES E0 - EF 
-( 0e0 see below ) 0e1 2byte sbc.dxi  0e2 2byte sep     0e3 2byte sbc.s
-0e4 2byte cpx.d   0e5 2byte sbc.d    0e6 2byte inc.d   0e7 2byte sbc.dil
-0e8 1byte inx     ( 0e9 see below )  0ea 1byte nop     0eb 1byte xba 
-0ec 3byte cpx     0ed 3byte sbc      0ee 3byte inc     0ef 4byte sbc.l
+( 0e0 see below ) 0e1 2byte sbc.dxi   0e2 2byte sep     0e3 2byte sbc.s
+0e4 2byte cpx.d   0e5 2byte sbc.d     0e6 2byte inc.d   0e7 2byte sbc.dil
+0e8 1byte inx     ( 0e9 see below )   0ea 1byte nop     0eb 1byte xba 
+0ec 3byte cpx     0ed 3byte sbc       0ee 3byte inc     0ef 4byte sbc.l
 
-\ OPCODES F0 - FF 
-0f0 twig beq      0f1 2byte sbc.diy  0f2 2byte sbc.di  0f3 2byte sbc.siy
-0f4 3byte phe.#   0f5 2byte sbc.dx   0f6 2byte inc.dx  0f7 2byte sbc.dily
-0f8 1byte sed     0f9 3byte sbc.y    0fa 1byte plx     ( fb xce see below )
-0fc 3byte jsr.xi  0fd 3byte sbc.x    0fe 3byte inc.x   0ff 4byte sbc.lx
+0f0 twig beq      0f1 2byte sbc.diy   0f2 2byte sbc.di  0f3 2byte sbc.siy
+0f4 3byte phe.#   0f5 2byte sbc.dx    0f6 2byte inc.dx  0f7 2byte sbc.dily
+0f8 1byte sed     0f9 3byte sbc.y     0fa 1byte plx     ( fb xce see below )
+0fc 3byte jsr.xi  0fd 3byte sbc.x     0fe 3byte inc.x   0ff 4byte sbc.lx
 
 
 \ 8/16-BIT HYBRID INSTRUCTIONS
