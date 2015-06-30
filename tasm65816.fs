@@ -33,30 +33,6 @@ staging maxmemory erase
 variable bc  0 bc !  
 
 
-\ ========== DEBUGGING AIDS TODO REMOVE ME ==============
-
-variable temp  0 temp ! 
-
-: dumplabellist ( xt -- )
-   cr
-   >body
-   begin
-      dup ." -- At address " . ." :" cr 
-      dup                        
-   while
-      dup @ 
-         ." next entry:" . cr  
-      dup cell+ @                
-         ." offset to stating area:" . cr 
-      dup 2 cells +  @           
-         ." xt of instruction:" . cr cr
-      @                          
-   repeat
-   drop ;
-
-\ ========== DEBUGGING AIDS END TODO REMOVE ME =========
-
-
 \ -----------------------
 \ LOW LEVEL AND HELPER DIRECTIVES
 
@@ -229,9 +205,6 @@ variable forwardref   forwardref clear
 \ at the head
 : addlabel  ( "name" -- ) 
    parse-name 2dup find-name    ( addr u nt|0 )
-   here forwardref !    \ save location of this entry for jmp/bra etc
-   here temp ! \ TODO TESTING 
-   \ address already defined, add another entry to the list 
    dup if   
      name>int    ( addr u xt )     \ Gforth uses "name token" (nt), need xt
      >body       ( addr u l-addr ) \ get location of this symbol
@@ -239,23 +212,22 @@ variable forwardref   forwardref clear
      here        ( addr u l-addr curr new ) 
      rot !       ( addr u curr )  \ save link to new entry in old entry
      ,           ( addr u )  \ save link to old entry in new entry
-     bc+1 ,      \ save location of operand hole (address) 
-     0 ,         \ save space for type of link (xt) 
      2drop       \ don't need name string 
    else     
      \ new name, create new list. NEXTNAME is specific to 
      \ Gforth and provides a string for a defining word such as CREATE
      drop nextname create  
      0 ,          \ mark tail of new linked list with zero
-     bc+1 ,      \ save location of operand hole (address) 
-     0 ,         \ save space for type of link (xt) 
-   then ; 
+   then 
+   bc+1 ,      \ save location of operand hole (address) 
+   0 , ;       \ save space for type of link (xt) 
 
 \ Mark an unresolved future symbol (forward label reference) for branches
 \ and jumps. This is a generic declaration used for all variants. Pushes 0
 \ to stack as a dummy entry for the address, allowing modification of the
 \ label even when unknown (eg. "<? lower 1+  jmp") 
 : <? ( "name" -- addr )  addlabel 
+      here 1 cells -  forwardref !  \ save location of xt slot
       0 ;         \ push dummy address on the stack
 
 
@@ -263,7 +235,6 @@ variable forwardref   forwardref clear
 \ unresolved forward references with the real address (for JMP/JSR). Used 
 \ by "->" once we know what the actually address is
 : dummy>jmp/jsr  ( buffer-offset -- )
-   ." Reached dummy>jmp/jsr " \ TODO TESTING
    staging +  dup c@  ( addr ul ) 
    over char+ c@      ( addr ul uh ) 
    lsb/msb>16         ( addr u ) 
@@ -278,8 +249,7 @@ variable forwardref   forwardref clear
    forwardref? if 
       \ We're dealing with an unresolved forward reference here
       \ so we need to complete the entry
-      forwardref @       ( dummy curr ) 
-      2 cells  +         ( dummy curr+2 ) \ xt slot in list entry
+      forwardref @       ( dummy curr )   \ location of xt slot
       ['] dummy>jmp/jsr  ( dummy curr+2 xt ) 
       swap !             ( dummy )        \ save xt in link entry
       forwardref clear   ( dummy )        \ reset flag 
