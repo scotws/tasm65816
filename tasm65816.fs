@@ -33,6 +33,30 @@ staging maxmemory erase
 variable bc  0 bc !  
 
 
+\ ========== DEBUGGING AIDS TODO REMOVE ME ==============
+
+variable temp  0 temp ! 
+
+: dumplabellist ( xt -- )
+   cr
+   >body
+   begin
+      dup ." -- At address " . ." :" cr 
+      dup                        
+   while
+      dup @ 
+         ." next entry:" . cr  
+      dup cell+ @                
+         ." offset to stating area:" . cr 
+      dup 2 cells +  @           
+         ." xt of instruction:" . cr cr
+      @                          
+   repeat
+   drop ;
+
+\ ========== DEBUGGING AIDS END TODO REMOVE ME =========
+
+
 \ -----------------------
 \ LOW LEVEL AND HELPER DIRECTIVES
 
@@ -195,11 +219,6 @@ variable forwardref   forwardref clear
    swap bank          ( addr bank ) 
    swap c! ;      
 
-
-
-
-
-
 \ Handle forward unresolved references (future symbols) by either creating 
 \ a new linked list of locations in the staging area or by adding a new 
 \ entry an existing list. Each entry is composed of 1) a link to the next 
@@ -211,19 +230,25 @@ variable forwardref   forwardref clear
 : addlabel  ( "name" -- ) 
    parse-name 2dup find-name    ( addr u nt|0 )
    here forwardref !    \ save location of this entry for jmp/bra etc
-
-   dup if   \ address already defined, add another entry to the list 
-      name>int    ( addr u xt )     \ Gforth uses "name token" (nt), need xt
-      >body       ( addr u l-addr ) \ get location of this symbol
-      dup @       ( addr u l-addr curr ) \ get link to current entry
-      here        ( addr u l-addr curr new ) 
-      rot !       ( addr u curr )  \ save link to new entry in old entry
-      ,           ( addr u )  \ save link to old entry in new entry
-      2drop       \ don't need name string 
-   else     \ new name, create new list. NEXTNAME is specific to 
-            \ Gforth and provides a string for a defining word such as CREATE
+   here temp ! \ TODO TESTING 
+   \ address already defined, add another entry to the list 
+   dup if   
+     name>int    ( addr u xt )     \ Gforth uses "name token" (nt), need xt
+     >body       ( addr u l-addr ) \ get location of this symbol
+     dup @       ( addr u l-addr curr ) \ get link to current entry
+     here        ( addr u l-addr curr new ) 
+     rot !       ( addr u curr )  \ save link to new entry in old entry
+     ,           ( addr u )  \ save link to old entry in new entry
+     bc+1 ,      \ save location of operand hole (address) 
+     0 ,         \ save space for type of link (xt) 
+     2drop       \ don't need name string 
+   else     
+     \ new name, create new list. NEXTNAME is specific to 
+     \ Gforth and provides a string for a defining word such as CREATE
      drop nextname create  
      0 ,          \ mark tail of new linked list with zero
+     bc+1 ,      \ save location of operand hole (address) 
+     0 ,         \ save space for type of link (xt) 
    then ; 
 
 \ Mark an unresolved future symbol (forward label reference) for branches
@@ -231,8 +256,6 @@ variable forwardref   forwardref clear
 \ to stack as a dummy entry for the address, allowing modification of the
 \ label even when unknown (eg. "<? lower 1+  jmp") 
 : <? ( "name" -- addr )  addlabel 
-      bc+1 ,      \ save location of operand hole (address) 
-      0 ,         \ save space for type of link (xt) 
       0 ;         \ push dummy address on the stack
 
 
@@ -266,39 +289,29 @@ variable forwardref   forwardref clear
    \ or the dummy address from the unresolved forward reference
    4c b,  w, ; 
 
-
 \ TODO figure out what to do with this
 \ Create an unresolved forward reference to the MOST SIGNIFICANT BYTE
 \ of an unresolved forward label reference
-: msb> ( "name" -- adr ) 
-   addlabel 
-   cell 2* ,     \ save 2* cell size as offset to the replacement jump table
-   0 ;           \ save 0000 as dummy value 
+\ : msb> ( "name" -- adr ) 
+   \ addlabel 
+   \ cell 2* ,     \ save 2* cell size as offset to the replacement jump table
+   \ 0 ;           \ save 0000 as dummy value 
 
 \ TODO figure out what to do with this
 \ Create an unresolved forward reference to the LEAST SIGNIFICANT BYTE
 \ of an unresolved forward label reference
-: lsb> ( "name" -- adr ) 
-   addlabel 
-   cell 3 * ,    \ save 3* cell size as offset to the replacement jump table
-   0 ;           \ save 0000 as dummy value 
+\ : lsb> ( "name" -- adr ) 
+   \ addlabel 
+   \ cell 3 * ,    \ save 3* cell size as offset to the replacement jump table
+   \ 0 ;           \ save 0000 as dummy value 
 
 \ TODO figure out what to do with this
 \ Create an unresolved forward reference to the BANK BYTE
 \ of an unresolved forward label reference
-: bank> ( "name" -- adr ) 
-   addlabel 
-   cell 4 * ,    \ save 4* cell size as offset to the replacement jump table
-   0 ;           \ save 0000 as dummy value 
-
-
-
-\ Use a jump table to handle replacement of dummy values, which should make 
-\ it easier to add other addresing forms for other processors
-\ TODO this is an unnecessary intermediate step, remove 
-create replacedummy  
-      ' dummy>rel ,   ' dummy>msb , ' dummy>lsb , ' dummy>bank ,            
-      ' dummy>rel16 , ' dummy>addr24 ,            
+\ : bank> ( "name" -- adr ) 
+   \ addlabel 
+   \ cell 4 * ,    \ save 4* cell size as offset to the replacement jump table
+   \ 0 ;           \ save 0000 as dummy value 
 
 
 \ Define a label. Assume that the user knows what they are doing and
@@ -308,7 +321,7 @@ create replacedummy
 \ is used by old block syntax of Forth
 : ->  ( "name" -- )
    parse-name 2dup find-name    ( addr u nt|0 )
-   \ if we have already used that name, it must be an unresolved 
+   \ if we find the name here twice, it must be an unresolved 
    \ forward reference. Now we can replace the dummy values we have been 
    \ collecting with the real stuff 
    dup if      
@@ -584,5 +597,6 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 \ start assembler in emulation mode. Don't use a:8 and xy:8 here
 \ because we don't want to save any bytes to the staging area yet 
 true e-flag !  axy8defines
+
 
 \ END

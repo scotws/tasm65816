@@ -1,7 +1,7 @@
 The Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 29. June 2015 
+This version: 30. June 2015 
 
 
 TL;DR
@@ -368,18 +368,31 @@ ANYTHING ELSE?
 
 The assembler uses single, unsorted linked lists to deal with unresolved forward references. Use the following routine to print the contents of these list during debugging. 
 
-\ Print entries in simple linked list when given xt of list
-: dumplabellist ( xt -- ) 
+\ ========== DEBUGGING AIDS TODO REMOVE ME ==============
+
+variable temp  0 temp !
+
+: dumplabellist ( xt -- )
+   cr
    >body
    begin
+      dup ." -- At address " . ." :" cr
       dup
    while
-      dup cell+ @ .       \ print data
-      dup 2 cells +  @    \ print type of link
-          if ." (jump) " else ." (branch) " then
+      dup @ 
+         ." first cell: " . cr
+      dup cell+ @
+         ." second cell: " . cr 
+      dup 2 cells +  @
+         ." third cell: " . cr cr
       @
    repeat
-   drop ; 
+   drop ;
+
+\ ========== DEBUGGING AIDS END TODO REMOVE ME =========
+
+Use this by assigning the xt of first entry to temp and then running
+"temp @ dumplabellist" from inside Forth. Remove after finished. 
  
 
 LEGAL STUFF
