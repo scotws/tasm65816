@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 30. June 2015
+\ This version: 02. July 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -60,6 +60,7 @@ variable bc  0 bc !
    0ff and  10 lshift    ( u16 u8 ) 
    or ; 
 
+
 \ make sure branch offset is the right size
 : short-branchable? ( n -- f )  -80 7f within ;
 : long-branchable?  ( n -- f )  -8000 7fff within ; 
@@ -85,6 +86,25 @@ variable bc  0 bc !
 
 \ Save linefeed-terminated  ASCII string provided by S" instruction
 : strlf, ( addr u -- ) str, 0a b, ; 
+
+
+\ Split up a 24 bit address in lsb, msb/lsb or bank/msb/lsb
+\ depending on the parameter 1 to 3 given with the address. 
+create splittable 
+   ' lsb ,   ' 16>msb/lsb ,   ' 24>bank/msb/lsb , 
+
+: splitbytes  ( 24bit u -- lsb | msb lsb | bank msb lsb ) 
+   1- cells       ( offset )  \ index to splittable
+   splittable +   ( addr ) 
+   @ execute ; 
+
+\ Use bytesplitter to save split-up 24-bit address in little-endian
+\ format
+: split&save  ( 24bit u -- lsb | msb lsb | bank msb lsb ) 
+   dup >r
+   splitbytes
+   r> 1+ 1 do b, loop ;  
+
 
 
 \ -----------------------
@@ -125,8 +145,8 @@ variable bc  0 bc !
 \ zero, there is no forward reference, otherwise the variable holds the 
 \ address of the incomplete entry in the linked list of this reference
 : clear ( -- ) 0 swap ! ; 
-variable forwardref   forwardref clear
-: forwardref? ( -- f )  forwardref @  0<> ; 
+variable futurecall  futurecall clear
+: futurecall? ( -- f )  futurecall @  0<> ; 
 
 
 \ TODO replace this
@@ -149,6 +169,7 @@ variable forwardref   forwardref clear
 : dummy>bank  ( buffer-offset -- ) 
    staging +  lc bank  ( addr bank ) 
    swap c! ; 
+
 
 
 \ TODO replace this
@@ -207,11 +228,10 @@ variable forwardref   forwardref clear
 \ to stack as a dummy entry for the address, allowing modification of the
 \ label even when unknown (eg. "<? lower 1+  jmp") 
 : <? ( "name" -- addr )  addlabel 
-      here 1 cells -  forwardref !  \ save location of xt slot
-      0 ;         \ push dummy address on the stack
+      here 1 cells -  futurecall !  \ save location of xt slot
+      0 ;         \ push dummy address on the stack 
 
 
-\ --- JMP/JSR --- 
 
 \ Replace dummy references to an ABSOLUTE 16-bit address in the list of
 \ unresolved forward references with the real address (for JMP/JSR). Used 
@@ -226,45 +246,10 @@ variable forwardref   forwardref clear
    char+              ( msb addr+1 ) 
    c! ; 
 
-\ Handle ABSOLUTE JUMPS, including unresolved forwards references
-\ TODO merge this with JSR 
-: jmp ( addr|dummy -- ) 
-   forwardref? if 
-      \ We're dealing with an unresolved forward reference here
-      \ so we need to complete the entry
-      forwardref @       ( dummy curr )   \ location of xt slot
-      ['] dummy>abs      ( dummy curr+2 xt ) 
-      swap !             ( dummy )        \ save xt in link entry
-      forwardref clear   ( dummy )        \ reset flag 
-   then 
-   
-   \ Save the opcode for JMP, and then either the 16-bit address provided
-   \ or the dummy address from the unresolved forward reference
-   4c b,  w, ; 
-
-\ Handle ABSOLUTE SUBROUTINE CALLS, including unresolved forwards references
-\ TODO merge this with JMP 
-: jsr ( addr|dummy -- ) 
-   forwardref? if 
-      \ We're dealing with an unresolved forward reference here
-      \ so we need to complete the entry
-      forwardref @       ( dummy curr )   \ location of xt slot
-      ['] dummy>abs      ( dummy curr+2 xt ) 
-      swap !             ( dummy )        \ save xt in link entry
-      forwardref clear   ( dummy )        \ reset flag 
-   then 
-   
-   \ Save the opcode for JMP, and then either the 16-bit address provided
-   \ or the dummy address from the unresolved forward reference
-   20 b,  w, ; 
-
-
-\ --- JMP.L/JSR.L --- 
-
 \ Replace dummy references to an ABSOLUTE 24-bit address in the list of
 \ unresolved forward references with the real address (JMP.L/JSR.L). Used 
 \ by "->" once we know what the actually address is
-\ TODO This is horribly, horribly ugly, see if we can clean this up 
+\ TODO Argh this is ugly, try to refactor or something, anything
 : dummy>abs.l  ( buffer-offset -- )  
 
    \ step one: assemble 65addr from dummy parts
@@ -287,41 +272,42 @@ variable forwardref   forwardref clear
    bank swap c! ; 
 
 
-\ Handle ABSOLUTE LONG JUMPS, including unresolved forwards references
-\ TODO merge this with JSR.L 
-: jmp.l ( addr|dummy -- ) 
-   forwardref? if 
-      \ We're dealing with an unresolved forward reference here
-      \ so we need to complete the entry
-      forwardref @       ( dummy curr )   \ location of xt slot
-      ['] dummy>abs.l    ( dummy curr+2 xt ) 
-      swap !             ( dummy )        \ save xt in link entry
-      forwardref clear   ( dummy )        \ reset flag 
-   then 
-   
-   \ Save the opcode for JMP, and then either the 16-bit address provided
-   \ or the dummy address from the unresolved forward reference
-   5c b, lw, ; 
+\ Build routines to handle diffent types of future references. Note: 
+\ these routines may require a sonic screwdriver 
+: buildbooth ( xt -- ) ( -- ) 
+   create , 
+   does> @           ( xt ) 
+      futurecall @   ( xt curr ) 
+      ! 
+      futurecall clear ; 
 
-\ Handle ABSOLUTE LONG SUBROUTINE CALLS, including unresolved forward 
-\ references
-\ TODO merge this with JMP.L 
-: jsr.l ( addr|dummy -- ) 
-   forwardref? if 
-      \ We're dealing with an unresolved forward reference here
-      \ so we need to complete the entry
-      forwardref @       ( dummy curr )   \ location of xt slot
-      ['] dummy>abs.l    ( dummy curr+2 xt ) 
-      swap !             ( dummy )        \ save xt in link entry
-      forwardref clear   ( dummy )        \ reset flag 
-   then 
-   
-   \ Save the opcode for JMP, and then either the 16-bit address provided
-   \ or the dummy address from the unresolved forward reference
-   22 b,  lw, ; 
+' dummy>abs   buildbooth tardis
+' dummy>abs.l buildbooth tardis.l
 
-\ HIER HIER 
 
+\ Create instuctions that must be able to accept a future reference 
+\ created by <? . Works by handing over the xt of the correct tardis 
+\ routine, the opcode of the instruction in question and the number of
+\ of bytes the operand is long (must be at least 1, so this routine will
+\ not work with single-byte instructions). Call the resulting word
+\ with the operand, such as " ' tardis 4c 2 futureproof jmp "
+\ TODO find other word than "futureproof"
+: futureproof ( xt opc bytes -- ) ( opr -- ) 
+   create c, c, , 
+   does> dup c@         ( opr addr bytes )
+         swap char+     ( opr bytes addr+1 ) 
+         dup c@         ( opr bytes addr+1 opc )
+         swap char+ @   ( opr bytes opc xt ) 
+         futurecall? if execute else drop then  ( opr bytes ) 
+         b,             ( opr bytes )  \ store opcode 
+         split&save ; 
+
+
+' tardis   4c 2  futureproof jmp 
+' tardis   20 2  futureproof jsr
+
+' tardis.l 5c 3  futureproof jmp.l 
+' tardis.l 22 3  futureproof jsr.l 
 
 
 
@@ -412,7 +398,7 @@ variable forwardref   forwardref clear
 \ -----------------------
 \ DEFINE OPCODES: WORK ROUTINES 
 
-\ handle GENERIC opcodes
+\ handle SIMPLE opcodes
 : 1byte  ( opcode -- ) ( -- ) 
    create c,
    does> c@ b, ; 
@@ -428,6 +414,7 @@ variable forwardref   forwardref clear
 : 4byte ( opcode -- ) ( lw -- )
    create c, 
    does> c@ b, lw, ; 
+
 
 \ handle SHORT branch instructions (BRA, etc); BRANCH is reserved by Forth
 : twig  ( opcode -- )  ( w -- ) 
@@ -479,7 +466,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 18 1byte clc       19 3byte ora.y      1a 1byte inc.a    1b 1byte tcs
 1c 3byte trb       1d 3byte ora.x      1e 3byte asl.x    1f 4byte ora.lx
 
-( 20 see above )   21 2byte and.dxi    22 4byte jsr.l    23 2byte and.s
+( 20 see above )   21 2byte and.dxi    ( 22 see above )  23 2byte and.s
 24 2byte bit.d     25 2byte and.d      26 2byte rol.d    27 2byte and.dil
 28 1byte plp       ( 29 see below )    2a 1byte rol.a    2b 1byte pld
 2c 3byte bit       2d 3byte and. ( !)  2e 3byte rol      2f 4byte and.l
@@ -497,7 +484,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 50 twig bvc        51 2byte eor.diy    52 2byte eor.di   53 2byte eor.siy
 54 blkmov mvn      55 2byte eor.dx     56 2byte lsr.dx   57 2byte eor.dily
 58 1byte cli       59 3byte eor.y      5a 1byte phy      5b 1byte tcd
-5c 4byte jmp.l     5d 3byte eor.x      5e 3byte lsr.x    5f 4byte eor.lx
+( 5c see above)    5d 3byte eor.x      5e 3byte lsr.x    5f 4byte eor.lx
 
 60 1byte rts       61 2byte adc.dxi    62 bigtwig phe.r  63 2byte adc.s
 64 2byte stz.d     65 2byte adc.d      66 2byte ror.d    67 2byte adc.dil
@@ -611,13 +598,8 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 \ SYNONYMS: We use systematic names ("jmp.l") where WDC defines 
 \ distinct opcodes ("JML"). For people who insist on these, we
 \ we define the WDC codes as synonyms
-  22 4byte jsl     \ jsr.l
-  5c 3byte jml     \ jmp.l
-  62 2byte per     \ phe.r   
-  6b 1byte rtl     \ rts.l 
-  82 bigtwig brl   \ bra.l 
- 0d4 2byte pei     \ phe.i
- 0f4 3byte pea     \ phe.# 
+: jsl jsr.l ;   : jml jmp.l ;   : per phe.r ;   : rtl rts.l ; 
+: brl bra.l ;   : pei phe.di ;  : pea phe.# ; 
 
 
 \ Switch to 8/16 bit with SEP/REP instructions 

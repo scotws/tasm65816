@@ -1,7 +1,9 @@
 The Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 30. June 2015 
+This version: 02. July 2015 
+
+THIS MANUAL IS CURRENTLY OUT OF DATE. SORRY.
 
 
 TL;DR
