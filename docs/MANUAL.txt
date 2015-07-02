@@ -1,9 +1,7 @@
 The Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 02. July 2015 
-
-THIS MANUAL IS CURRENTLY OUT OF DATE. SORRY.
+This version: 03. July 2015 
 
 
 TL;DR
@@ -134,9 +132,9 @@ Then, INCLUDE the assembler:
 
         include tasm65816.fs
 
-Do the same with your source file, in this case example.fs
+Do the same with your source file, in this case rom65c02.fs. 
 
-        include example.fs
+        include rom65c02.fs
 
 You will be left with ( addr u ) on the stack, describing the beginning of the machine code and the number of bytes in it. 
 
@@ -149,7 +147,7 @@ Included in this package are two larger example files:
 
     example.fs - Heavily commented, but won't produce working code if assembled. 
         
-    rom.fs - Fewer comments, but will produce a working 8k image that can be tested with a program such as A Crude 65816 Emulator (crude65816, https://github.com/scotws/crude65816 ) when it is done. 
+    rom65c02.fs - Fewer comments, but will produce a working 8k image for the 65c02 -- no 65816 instructions -- that can be tested with an emulator such as py65mon ( or the Crude 65816 Emulator https://github.com/scotws/crude65816 once it is finished).
 
 
 COMMENTS, SPACING, AND MULTIPLE COMMANDS
@@ -242,9 +240,9 @@ MODE SWITCHES
 
 The 65816 is a hybrid processor that has an "emulation" mode, where it pretends to be an 8-bit 6502, and a "native" mode, where the A, X, and Y registers can be switched to 16 bits. We start off in emulation mode. To switch modes, use the commands
 
-        EMULATED
+        emulated
 or
-        NATIVE 
+        native 
 
 These encode the SEC XCE and CLC XCE sequences respectively. You could code these instructions by hand. However, using these built-in commands lets the assembler know which mode it is supposed to be in. 
 
@@ -265,7 +263,7 @@ or the 16-bit variant
         
 The normal WDC assembler format uses the pseudo-commands LONGA ON/OFF and LONGI ON/OFF to tell this to the assembler. These commands do not generate any code. The Typist's Assembler uses the commands
 
-    A:8   A:16   XY:8   XY:16   AXY:8   AXY:16
+    a:8   a:16   xy:8   xy:16   axy:8   axy:16
 
 that not only encode the REP and SEP sequences, but also make sure that the correct number of operands are assigned to the hybrid opcodes. Therefore, again, it is very important that mode switches are performed by using those commands and not directly with REP and SEP (unless you really, really know what you are doing). 
 
@@ -284,8 +282,6 @@ Note the A:8 command automatically takes care of the SEP instruction for us, and
 
 LABELS, JUMPS AND BRANCHES
 
-(NOTE: CURRENTLY, LONG JUMPS AND BRANCHES DO NOT WORK)
-
 Here's another problem with existing Forth assemblers: A lot of them don't accept labels, especially not forward references. They tell you to suck it up and use "structured programming" instead. Er, no. 
 
 As you can tell from the examples, labels are prefixed with "->" ("-->" would have been easier to read but it's used in ancient Forths as part of the BLOCK commands). Once a label is defined, you can use it for backwards jumps, branches and references without further ado. 
@@ -294,17 +290,17 @@ As you can tell from the examples, labels are prefixed with "->" ("-->" would ha
               frog bra
               frog jmp
 
-(When choosing a loop label name, remember that LOOP is already taken by Forth itself, as are REPEAT, BEGIN, and AGAIN.) 
+(When choosing a loop label name, remember that LOOP is already taken by Forth itself, as are REPEAT, BEGIN, BRANCH and AGAIN.) 
 
-Forward branches are a bit more complicated, because internally the assembler has to create a list of unresolved references until the actual location of the label is known (a well-defined problem with single-pass assemblers). We deal with this by declaring labels before we use them with special commands, J>, JL> (for long variants) B>, and BL>.
+Forward branches are a bit more complicated, because internally the assembler has to create a list of unresolved "future" references until the actual location of the label is known (a well-defined problem with single-pass assemblers). We deal with the problem by assigning a special directive, "<?", to prefix any such instruction: 
 
-           j> frog jsr 
+           <? frog jsr 
                    nop
 
-          jl> frog jsr.l 
+           <? frog jsr.l 
                    nop
 
-           b> dogs bra
+           <? dogs bra
                    nop
 
    -> dogs         brk 
@@ -312,23 +308,7 @@ Forward branches are a bit more complicated, because internally the assembler ha
               dogs bra 
                    rts
 
-Note that by convention, there is one space between the "J>" or "B>" instruction and the label name. After the label has been defined with "->", we can access it without any further hassle. Because of the way forward references are handled, it is easier to deal with strings and subroutines if they are defined before the main code. 
-
-(This is a really annoying way to do things, so we are looking to change this in future versions.)
-
-To access the most significant byte of a unresolved address referenced by a
-label, we use "MSB>", for the least significant byte we use "LSB>", for the bank we need "BANK>". For example, let's say the subroutine PRTSTR prints a zero-terminated string with the address in $00 and $01
-
-     lsb> truthstr lda.#   
-                00 sta.d
-     msb> truthstr lda.#   
-                01 sta.d
-            prtstr jsr 
-                   brk 
-   -> truthstr
-   s" Cats are cool" str0,
-
-Note we use a variant of STR, here that automatically adds the terminating zero.
+(By convention, there is one space between the "<?" instruction and the label name.) The assembler is intelligent enough to figure out what is a branch and what is a jump and to handle the codes appropriately. After the label has been defined with "->", we can access it without any further hassle. Future references are hard on the assembler (in other words, they take more time). 
 
 
 
@@ -368,7 +348,7 @@ There are currently no optimizations suggested.
 
 ANYTHING ELSE?
 
-The assembler uses single, unsorted linked lists to deal with unresolved forward references. Use the following routine to print the contents of these list during debugging. 
+The assembler uses single, unsorted linked lists to deal with unresolved forward references. Use the following routine as a base to print the contents of these list during debugging. (Note: This fragment is not maintained and might require tweaking to work.) 
 
 \ ========== DEBUGGING AIDS TODO REMOVE ME ==============
 

@@ -4,6 +4,9 @@
 \ First version: 31. May 2015
 \ This version: 28. Jun 2015 (Tau Day)
 
+\ THIS FILES IS CURRENTLY OUT OF DATE
+
+
 \ Remember this is assembler source file is actually a Forth programm listing
 \ as far as Forth is concerned. As such, the file type should be .fs instead
 \ of .asm if you want correct syntax highlighting with an editor such as vi

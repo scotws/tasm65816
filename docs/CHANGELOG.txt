@@ -1,7 +1,8 @@
-Changelog for 
+Changelog of major developments for 
 A Typist's Assembler for the 65816 in Forth
 Scot W. Stevenson <scot.stevenson@gmail.com>
 
 Add new entries to the top
+
 
 31. May 2015 - Copied base files from tasm65c02 project

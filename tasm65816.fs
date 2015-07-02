@@ -82,6 +82,7 @@ variable bc  0 bc !
 \ Save linefeed-terminated  ASCII string provided by S" instruction
 : strlf, ( addr u -- ) str, 0a b, ; 
 
+
 \ Split up a 24 bit address in lsb, msb/lsb or bank/msb/lsb
 \ depending on the parameter 1 to 3 given with the address. 
 create splittable 
@@ -368,7 +369,7 @@ create twigtests
 : blkmove  ( opc -- ) ( opr opr opc -- ) 
    create c,
    does> c@ b,          \ Save opcode 
-      lsb b,  lsb b, ;   \ save operands in correct sequence
+      lsb b,  lsb b, ;  \ save operands in correct sequence
 
 
 \ -----------------------
@@ -530,14 +531,15 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 
 \ SPECIAL OPCODES: We define these outside of the normal table 
 \ above so we can include special checks. 
+\ TODO integrate these in the normal opcode table 
 
 \ xce: Check if previous command was either CLC or SEC
 : xce ( -- ) 
    0fb b,
    bc @  2 -  staging  +  \ get address of previous instruction
    c@ dup               
-      18 = invert  swap  38 = invert  and
-      if cr ." Warning: No CLC or SEC before XCE in byte " lc . cr then ; 
+   18 = invert  swap  38 = invert  and  if 
+      cr ." Warning: No CLC or SEC before XCE in byte " lc . cr then ; 
 
 \ wdm: Warn if we encounter this command
 : wdm ( b -- ) 

@@ -1,0 +1,70 @@
+
+\ Code and fragements we might still need later. This file will go bye-bye once
+\ a feature-stable version is reached. Do not try to execute this file.
+
+
+\ TODO replace this
+\ replace dummy reference to the MOST SIGNIFICANT BYTE in a list of 
+\ forward references with the real MSB of the label
+: dummy>msb  ( buffer-offset -- )
+   staging +  lc msb  ( addr msb )
+   swap c! ;
+
+\ TODO replace this
+\ replace dummy reference to the LEAST SIGNIFICANT BYTE in a list of 
+\ forward references with the real LSB of the label
+: dummy>lsb  ( buffer-offset -- )
+   staging +  lc lsb  ( addr lsb )
+   swap c! ;
+
+\ TODO replace this
+\ replace dummy reference to the BANK BYTE in a list of forward 
+\ references with the real LSB of the label
+: dummy>bank  ( buffer-offset -- )
+   staging +  lc bank  ( addr bank )
+   swap c! ;
+
+
+\ TODO figure out what to do with this
+\ Create an unresolved forward reference to the MOST SIGNIFICANT BYTE
+\ of an unresolved forward label reference
+\ : msb> ( "name" -- adr ) 
+   \ addlabel 
+   \ cell 2* ,     \ save 2* cell size as offset to the replacement jump table
+   \ 0 ;           \ save 0000 as dummy value 
+
+\ TODO figure out what to do with this
+\ Create an unresolved forward reference to the LEAST SIGNIFICANT BYTE
+\ of an unresolved forward label reference
+\ : lsb> ( "name" -- adr ) 
+   \ addlabel 
+   \ cell 3 * ,    \ save 3* cell size as offset to the replacement jump table
+   \ 0 ;           \ save 0000 as dummy value 
+
+\ TODO figure out what to do with this
+\ Create an unresolved forward reference to the BANK BYTE
+\ of an unresolved forward label reference
+\ : bank> ( "name" -- adr ) 
+   \ addlabel 
+   \ cell 4 * ,    \ save 4* cell size as offset to the replacement jump table
+   \ 0 ;           \ save 0000 as dummy value 
+
+
+
+
+To access the most significant byte of a unresolved address referenced by a
+label, we use "MSB>", for the least significant byte we use "LSB>", for the
+bank we need "BANK>". For example, let's say the subroutine PRTSTR prints a
+zero-terminated string with the address in $00 and $01
+
+     lsb> truthstr lda.#
+                00 sta.d
+     msb> truthstr lda.#
+                01 sta.d
+            prtstr jsr
+                   brk
+   -> truthstr
+   s" Cats are cool" str0,
+
+Note we use a variant of STR, here that automatically adds the terminating 
+zero.

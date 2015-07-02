@@ -4,6 +4,8 @@ First version: 02. July 2015
 This version: 02. July 2015
 
 
+THIS FILE IS INCOMPLETE
+
 This text contains additional information on the internals of the Typist's Assembler for the 65816 in Forth. It is not required to use the software, and is horribly geeky. 
 
 
