@@ -2,7 +2,7 @@
 \ A Typist's 65816 Assembler in Forth
 \ Scot W. Stevenson <scot.stevenson@gmail.com>
 \ First version: 12. Jun 2015
-\ This version: 26. Jun 2015
+\ This version: 03. Jul 2015
 
 \ This is a primitive testing suite. Load it after starting Gforth with 
 \ "gforth -m 1G" and "include tasm65816.fs" with the instruction
@@ -87,12 +87,12 @@
            toplink jmp.l      \ 5c 5a 0e0 00
            toplink jsr.l      \ 22 5a 0e0 00
 
-    b>  bottomlink bra        \ 80 11
-    j>  bottomlink jmp        \ 4c 81 0e0
-    j>  bottomlink jsr        \ 20 81 0e0
-    jl> bottomlink jmp.l      \ 5c 81 0e0 00
-    jl> bottomlink jsr.l      \ 22 81 0e0 00
-    bl> bottomlink bra.l      \ 82 00 00       
+     <? bottomlink bra        \ 80 11
+     <? bottomlink jmp        \ 4c 81 0e0
+     <? bottomlink jsr        \ 20 81 0e0
+     <? bottomlink jmp.l      \ 5c 81 0e0 00
+     <? bottomlink jsr.l      \ 22 81 0e0 00
+     <? bottomlink bra.l      \ 82 00 00       
 
    -> bottomlink   nop        \ 0ea 
 
@@ -109,8 +109,8 @@
 
    end 
 
-   \ uncomment next line to save the hex dump to the file "test.bin"
-   2dup save test.bin 
+   \ uncomment next line to save the hex dump to the file "selftest.bin"
+   2dup save selftest.bin 
 
    \ Put dump on screen for later comparison
    2dup dump 

@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 02. July 2015
+\ This version: 03. July 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -60,11 +60,6 @@ variable bc  0 bc !
    0ff and  10 lshift    ( u16 u8 ) 
    or ; 
 
-
-\ make sure branch offset is the right size
-: short-branchable? ( n -- f )  -80 7f within ;
-: long-branchable?  ( n -- f )  -8000 7fff within ; 
-
 \ Calculate currect location counter from target address and buffer offset
 : lc  ( -- )  lc0 @  bc @  + ; 
 
@@ -87,7 +82,6 @@ variable bc  0 bc !
 \ Save linefeed-terminated  ASCII string provided by S" instruction
 : strlf, ( addr u -- ) str, 0a b, ; 
 
-
 \ Split up a 24 bit address in lsb, msb/lsb or bank/msb/lsb
 \ depending on the parameter 1 to 3 given with the address. 
 create splittable 
@@ -99,12 +93,11 @@ create splittable
    @ execute ; 
 
 \ Use bytesplitter to save split-up 24-bit address in little-endian
-\ format
-: split&save  ( 24bit u -- lsb | msb lsb | bank msb lsb ) 
+\ format to staging area
+: split&save  ( 24bit u -- ) 
    dup >r
    splitbytes
    r> 1+ 1 do b, loop ;  
-
 
 
 \ -----------------------
@@ -133,7 +126,7 @@ create splittable
 
 
 \ -----------------------
-\ LABELS 
+\ FUTURE SYMBOLS / UNRESOLVED FORWARD LABELS 
 
 \ calculate offset to the start of the staging area for the operand of
 \ JMP/JSR/BRA etc opcodes. In other words, skip one byte to leave space
@@ -145,55 +138,9 @@ create splittable
 \ zero, there is no forward reference, otherwise the variable holds the 
 \ address of the incomplete entry in the linked list of this reference
 : clear ( -- ) 0 swap ! ; 
-variable futurecall  futurecall clear
-: futurecall? ( -- f )  futurecall @  0<> ; 
 
-
-\ TODO replace this
-\ replace dummy reference to the MOST SIGNIFICANT BYTE in a list of 
-\ forward references with the real MSB of the label
-: dummy>msb  ( buffer-offset -- ) 
-   staging +  lc msb  ( addr msb ) 
-   swap c! ; 
-
-\ TODO replace this
-\ replace dummy reference to the LEAST SIGNIFICANT BYTE in a list of 
-\ forward references with the real LSB of the label
-: dummy>lsb  ( buffer-offset -- ) 
-   staging +  lc lsb  ( addr lsb ) 
-   swap c! ; 
-
-\ TODO replace this
-\ replace dummy reference to the BANK BYTE in a list of forward 
-\ references with the real LSB of the label
-: dummy>bank  ( buffer-offset -- ) 
-   staging +  lc bank  ( addr bank ) 
-   swap c! ; 
-
-
-
-\ TODO replace this
-\ replace dummy references to an RELATIVE offset byte in list of 
-\ unresolved forward references by BRA with the real offset.  
-: dummy>rel  ( buffer-offset -- )
-   dup staging +     ( b-off addr ) 
-   bc @              ( b-off addr bc ) 
-   rot -  1-         ( addr 65off ) 
-   swap c! ; 
-
-\ TODO replace this
-\ replace dummy references to an RELATIVE offset byte in list of 
-\ unresolved forward references by BRA.L with the real offset.  
-: dummy>rel16  ( buffer-offset -- ) 
-   dup staging +     ( b-off addr ) 
-   bc @              ( b-off addr bc ) 
-   rot -  2 -        ( addr 65off )
-   16>msb/lsb        ( addr msb lsb )
-   rot               ( msb lsb addr ) 
-   tuck              ( msb addr lsb addr ) 
-   c!                ( msr addr ) 
-   char+ c! ; 
-
+variable tofuture  tofuture clear
+: tofuture? ( -- f )  tofuture @  0<> ; 
 
 \ Handle forward unresolved references (future symbols) by either creating 
 \ a new linked list of locations in the staging area or by adding a new 
@@ -222,20 +169,22 @@ variable futurecall  futurecall clear
    bc+1 ,      \ save location of operand hole (address) 
    0 , ;       \ save space for type of link (xt) 
 
-
 \ Mark an unresolved future symbol (forward label reference) for branches
 \ and jumps. This is a generic declaration used for all variants. Pushes 0
 \ to stack as a dummy entry for the address, allowing modification of the
-\ label even when unknown (eg. "<? lower 1+  jmp") 
-: <? ( "name" -- addr )  addlabel 
-      here 1 cells -  futurecall !  \ save location of xt slot
-      0 ;         \ push dummy address on the stack 
+\ label even when unknown (eg. "<? lower 1+  jmp"). This makes life harder
+\ for relative jumps which would be so much happier with the LC instead.
+: <? ( "name" -- addr )  
+      addlabel 
+      here 1 cells -  tofuture !  \ save location of xt slot
+      0 ;                         \ push dummy address on the stack 
 
+\ REPLACEMENT ROUTINES for various forward branches. These are used by ->
+\ once we know the actual address we will be jumping or branching to so
+\ we can replace dummy references we saved. The xt of these routines is 
+\ saved in the linked list of future symbols. 
 
-
-\ Replace dummy references to an ABSOLUTE 16-bit address in the list of
-\ unresolved forward references with the real address (for JMP/JSR). Used 
-\ by "->" once we know what the actually address is
+\ Replace dummy references to an ABSOLUTE 16-bit address 
 : dummy>abs  ( buffer-offset -- )
    staging +  dup c@  ( addr lsb ) 
    over char+ c@      ( addr lsb msb ) 
@@ -246,10 +195,8 @@ variable futurecall  futurecall clear
    char+              ( msb addr+1 ) 
    c! ; 
 
-\ Replace dummy references to an ABSOLUTE 24-bit address in the list of
-\ unresolved forward references with the real address (JMP.L/JSR.L). Used 
-\ by "->" once we know what the actually address is
-\ TODO Argh this is ugly, try to refactor or something, anything
+\ Replace dummy references to an ABSOLUTE 24-bit address 
+\ This routine is far too long and really, really ugly
 : dummy>abs.l  ( buffer-offset -- )  
 
    \ step one: assemble 65addr from dummy parts
@@ -271,71 +218,99 @@ variable futurecall  futurecall clear
    c! char+ r>        ( addr+2 65addr )
    bank swap c! ; 
 
+\ replace dummy references to an RELATIVE offset 
+: dummy>rel          ( buffer-offset -- )
+   dup staging +     ( b-off addr ) 
+   bc @              ( b-off addr bc ) 
+   rot -  1-         ( addr 65off ) 
+   swap c! ; 
 
-\ Build routines to handle diffent types of future references. Note: 
-\ these routines may require a sonic screwdriver 
+\ replace dummy references to an RELATIVE LONG offset 
+: dummy>rel.l        ( buffer-offset -- ) 
+   dup staging +     ( b-off addr ) 
+   bc @              ( b-off addr bc ) 
+   rot -  2 -        ( addr 65off )
+   16>msb/lsb        ( addr msb lsb )
+   rot               ( msb lsb addr ) 
+   tuck              ( msb addr lsb addr ) 
+   c!                ( msr addr ) 
+   char+ c! ; 
+
+
+\ Build routines to handle these diffent types of future references. 
+\ These routines may require a sonic screwdriver 
 : buildbooth ( xt -- ) ( -- ) 
    create , 
    does> @           ( xt ) 
-      futurecall @   ( xt curr ) 
+      tofuture @   ( xt curr ) 
       ! 
-      futurecall clear ; 
+      tofuture clear ; 
 
-' dummy>abs   buildbooth tardis
-' dummy>abs.l buildbooth tardis.l
+' dummy>abs   buildbooth tardis     \ for JMP etc
+' dummy>abs.l buildbooth tardis.l   \ for JMP.L etc
+' dummy>rel   buildbooth tardis.r   \ for BRA etc
+' dummy>rel.l buildbooth tardis.rl  \ for BRA.L etc
 
 
-\ Create instuctions that must be able to accept a future reference 
-\ created by <? . Works by handing over the xt of the correct tardis 
+\ FUTUREPROOF ABSOLUTE REFERENCES so they work with <?.  
+\ Works by handing over the xt of the correct tardis 
 \ routine, the opcode of the instruction in question and the number of
 \ of bytes the operand is long (must be at least 1, so this routine will
 \ not work with single-byte instructions). Call the resulting word
-\ with the operand, such as " ' tardis 4c 2 futureproof jmp "
-\ TODO find other word than "futureproof"
-: futureproof ( xt opc bytes -- ) ( opr -- ) 
+\ with the operand, such as " ' tardis 4c 2 timeless jmp "
+: timeless  ( xt opc bytes -- ) ( opr -- ) 
    create c, c, , 
    does> dup c@         ( opr addr bytes )
          swap char+     ( opr bytes addr+1 ) 
          dup c@         ( opr bytes addr+1 opc )
          swap char+ @   ( opr bytes opc xt ) 
-         futurecall? if execute else drop then  ( opr bytes ) 
+         tofuture? if execute           
+            else drop then    ( opr bytes opc ) 
          b,             ( opr bytes )  \ store opcode 
          split&save ; 
 
 
-' tardis   4c 2  futureproof jmp 
-' tardis   20 2  futureproof jsr
+\ FUTUREPROOF RELATIVE REFERENCES so the work with <?. This method 
+\ assumes that we will always be given a label or an absolute address 
+\ by the user, never an actual offset.  BRANCH is reserved by Forth. 
+: toofar?   ( n -- f )  -80 7f within invert ;
+: toofar.l? ( n -- f )  -8000 7fff within invert ; 
 
-' tardis.l 5c 3  futureproof jmp.l 
-' tardis.l 22 3  futureproof jsr.l 
+create twigtests
+   ' toofar? ,  ' toofar.l? , 
+
+\ Create and test short branches like BRA (one byte offset, u=1) and long 
+\ branches like BRA.L (two bytes offset, u=1). Returns format suitable for
+\ split&save
+: twig  ( 65addr u -- offset bytes ) 
+   swap           ( u addr ) 
+   lc -           ( u offset ) 
+   over -         ( u offset-u )        \ adjust for opr length 
+   over 1- cells  ( u offset-u idx )    \ index to twigtests table
+   twigtests +     ( u offset-u addr ) 
+   over swap      ( u offset-u offset-u addr ) 
+   @ execute      ( u offset-u f ) 
+      if cr ." ERROR Short branch out of range at LC: " lc . space 
+         ." BC: " bc . cr  then 
+   swap ;         ( offset-u u )  
+
+\ Version of TIMELESS that works with relative branches. 
+: timeless.r  ( xt opc bytes -- ) ( opr -- ) 
+   create c, c, , 
+   does> dup c@           ( opr addr bytes )
+         swap char+       ( opr bytes addr+1 ) 
+         dup c@           ( opr bytes addr+1 opc )
+         swap char+ @     ( opr bytes opc xt ) 
+
+         tofuture? if execute ( opr bytes opc ) 
+            rot drop lc -rot  \ dummy must be LC, not zero
+         else drop then       
+         b,                   ( opr bytes )  \ store opcode 
+         twig  split&save ;   \ store operands
 
 
-
-
-\ TODO figure out what to do with this
-\ Create an unresolved forward reference to the MOST SIGNIFICANT BYTE
-\ of an unresolved forward label reference
-\ : msb> ( "name" -- adr ) 
-   \ addlabel 
-   \ cell 2* ,     \ save 2* cell size as offset to the replacement jump table
-   \ 0 ;           \ save 0000 as dummy value 
-
-\ TODO figure out what to do with this
-\ Create an unresolved forward reference to the LEAST SIGNIFICANT BYTE
-\ of an unresolved forward label reference
-\ : lsb> ( "name" -- adr ) 
-   \ addlabel 
-   \ cell 3 * ,    \ save 3* cell size as offset to the replacement jump table
-   \ 0 ;           \ save 0000 as dummy value 
-
-\ TODO figure out what to do with this
-\ Create an unresolved forward reference to the BANK BYTE
-\ of an unresolved forward label reference
-\ : bank> ( "name" -- adr ) 
-   \ addlabel 
-   \ cell 4 * ,    \ save 4* cell size as offset to the replacement jump table
-   \ 0 ;           \ save 0000 as dummy value 
-
+\ -----------------------
+\ LABELS 
 
 \ Define a label. Assume that the user knows what they are doing and
 \ doesn't try to name label twice. If there were unresolved forward 
@@ -367,38 +342,10 @@ variable futurecall  futurecall clear
    \ to Gforth and provides a string for a defining word such as CREATE
    drop nextname  create lc ,  does> @ ; 
 
-
-\ -----------------------
-\ OPCODE HELPER FUNCTIONS
-
-\ caclulate short branch (8-bit, BRA etc). This assumes we are given 
-\ the address of where we branch to, not the offset, which we calculate. 
-\ The assumption is that the branch will always be used with labels. 
-: makeshortbranch ( 65addr -- ) 
-   lc -  1-
-   dup short-branchable?  if b, 
-      else  ." Error: Short branch out of range, lc: " lc .  
-            space ." bc: " bc . cr  drop then ; 
-
-\ caclulate long branch (16-bit, BRA.L ) This assumes we are given 
-\ the address of where we branch to, not the offset, which we calculate. 
-\ The assumption is that the branch will always be used with labels. 
-: makelongbranch ( 65addr -- ) 
-   lc -  2 -  
-   dup long-branchable?  if w, 
-      else  ." Error: Long branch out of range, lc: " lc .  
-            space ." bc: " bc . cr  drop then ; 
-
-\ format and fix sequence of operands for the block move commands
-\ MVN and MVP: Assembler is "src dest mvn", and machine code sequence
-\ is "<opc> <dest> <src>". 
-: saveblocks ( src dest -- )  lsb b, lsb b, ; 
-
   
 \ -----------------------
-\ DEFINE OPCODES: WORK ROUTINES 
+\ SIMPLE OPCODE DEFINITION FUNCTIONS
 
-\ handle SIMPLE opcodes
 : 1byte  ( opcode -- ) ( -- ) 
    create c,
    does> c@ b, ; 
@@ -411,26 +358,110 @@ variable futurecall  futurecall clear
    create c,
    does> c@ b, w, ; 
 
+\ TODO see if we still can use this 
 : 4byte ( opcode -- ) ( lw -- )
    create c, 
    does> c@ b, lw, ; 
 
-
-\ handle SHORT branch instructions (BRA, etc); BRANCH is reserved by Forth
-: twig  ( opcode -- )  ( w -- ) 
-   create c,
-   does> c@ b, makeshortbranch ; 
-
-\ handle LONG branch instructions (BRA.L); BRANCH is reserved by Forth
-: bigtwig  ( opcode -- )  ( w -- ) 
-   create c,
-   does> c@ b, makelongbranch ; 
-
 \ handle BLOCK MOVE instructions (MVN, MVP), which have a reverse order of
-\ operands in machine code and assembler. BLOCK AND MOVE are reserved by Forth
-: blkmov ( opcode -- ) ( c c -- ) 
+\ operands in machine code and assembler. BLOCK and MOVE are reserved by Forth
+: blkmove  ( opc -- ) ( opr opr opc -- ) 
    create c,
-   does> c@ b, saveblocks ; 
+   does> c@ b,          \ Save opcode 
+      lsb b,  lsb b, ;   \ save operands in correct sequence
+
+
+\ -----------------------
+\ OPCODE TABLE 
+
+\ TODO sort these in correct order
+' tardis     4c 2  timeless   jmp 
+' tardis     20 2  timeless   jsr
+' tardis.l   5c 3  timeless   jmp.l 
+' tardis.l   22 3  timeless   jsr.l 
+' tardis.r   80 1  timeless.r bra
+' tardis.rl  82 2  timeless.r bra.l
+
+
+00 2byte brk       01 2byte ora.dxi    02 2byte cop      03 2byte ora.s
+04 2byte tsb.d     05 2byte ora.d      06 2byte asl.d    07 2byte ora.dil
+08 1byte php       ( 09 see below )    0a 1byte asl.a    0b 1byte phd
+0c 3byte tsb       0d 3byte ora        0e 3byte asl      0f 4byte ora.l
+
+( 10 twig bpl )       11 2byte ora.diy    12 2byte ora.di   13 2byte ora.siy
+14 2byte trb.d     15 2byte ora.dx     16 2byte asl.dx   17 2byte ora.dily
+18 1byte clc       19 3byte ora.y      1a 1byte inc.a    1b 1byte tcs
+1c 3byte trb       1d 3byte ora.x      1e 3byte asl.x    1f 4byte ora.lx
+
+( 20 see above )   21 2byte and.dxi    ( 22 see above )  23 2byte and.s
+24 2byte bit.d     25 2byte and.d      26 2byte rol.d    27 2byte and.dil
+28 1byte plp       ( 29 see below )    2a 1byte rol.a    2b 1byte pld
+2c 3byte bit       2d 3byte and. ( !)  2e 3byte rol      2f 4byte and.l
+
+( 30 twig bmi )      31 2byte and.diy    32 2byte and.di   33 2byte and.siy
+34 2byte bit.dxi   35 2byte and.dx     36 2byte rol.dx   37 2byte and.dily
+38 1byte sec       39 3byte and.y      3a 1byte dec.a    3b 1byte tsc
+3c 3byte bit.x     3d 3byte and.x      3e 3byte rol.x    3f 4byte and.lx
+
+40 1byte rti       41 2byte eor.dxi    ( 42 see below )  43 2byte eor.s
+44 blkmove mvp     45 2byte eor.d      46 2byte lsr.d    47 2byte eor.dil
+48 1byte pha       ( 49 see below )    4a 1byte lsr.a    4b 1byte phk
+( 4c see above)    4d 3byte eor        4e 3byte lsr      4f 4byte eor.l
+
+( 50 twig bvc )    51 2byte eor.diy    52 2byte eor.di   53 2byte eor.siy
+54 blkmove mvn     55 2byte eor.dx     56 2byte lsr.dx   57 2byte eor.dily
+58 1byte cli       59 3byte eor.y      5a 1byte phy      5b 1byte tcd
+( 5c see above)    5d 3byte eor.x      5e 3byte lsr.x    5f 4byte eor.lx
+
+60 1byte rts       61 2byte adc.dxi   ( 62 bigtwig phe.r ) 63 2byte adc.s
+64 2byte stz.d     65 2byte adc.d      66 2byte ror.d    67 2byte adc.dil
+68 1byte pla       ( 69 see below )    6a 1byte ror.a    6b 1byte rts.l
+6c 3byte jmp.i     6d 3byte adc        6e 3byte ror      6f 4byte adc.l
+
+( 70 twig bvs )      71 2byte adc.diy    72 2byte adc.di   73 2byte adc.siy
+74 2byte stz.dx    75 2byte adc.dx     76 2byte ror.dx   77 2byte adc.dily
+78 1byte sei       79 3byte adc.y      7a 1byte ply      7b 1byte tdc
+7c 3byte jmp.xi    7d 3byte adc.x      7e 3byte ror.x    7f 4byte adc.lx
+
+( 80 see above)    81 2byte sta.dxi   ( 82 see above )  83 2byte sta.s
+84 2byte sty.d     85 2byte sta.d      86 2byte stx.d    87 2byte sta.dil
+88 1byte dey       ( 89 see below )    8a 1byte txa      8b 1byte phb
+8c 3byte sty       8d 3byte sta        8e 3byte stx      8f 4byte sta.l
+
+( 90 twig bcc )       91 2byte sta.diy    92 2byte sta.di   93 2byte sta.siy
+94 2byte sty.dx    95 2byte sta.dx     96 2byte stx.dy   97 2byte sta.dily
+98 1byte tya       99 3byte sta.y      9a 1byte txs      9b 1byte txy 
+9c 3byte stz       9d 3byte sta.x      9e 3byte stz.x    9f 4byte sta.lx
+
+( a0 see below )  0a1 2byte lda.dxi   ( a2 see below )  0a3 2byte lda.s
+0a4 2byte ldy.d   0a5 2byte lda.d     0a6 2byte ldx.d   0a7 2byte lda.dil
+0a8 1byte tay     ( a9 see below )    0aa 1byte tax     0ab 1byte plb
+0ac 3byte ldy     0ad 3byte lda       0ae 3byte ldx     0af 4byte lda.l
+
+( 0b0 twig bcs )     0b1 2byte lda.diy   0b2 2byte lda.di  0b3 2byte lda.siy
+0b4 2byte ldy.dx  0b5 2byte lda.dx    0b6 2byte ldx.dy  0b7 2byte lda.dily
+0b8 1byte clv     0b9 3byte lda.y     0ba 1byte tsx     0bb 1byte tyx
+0bc 3byte ldy.x   0bd 3byte lda.x     0be 3byte ldx.y   0bf 4byte lda.lx
+
+( c0 see below )  0c1 2byte cmp.dxi   0c2 2byte rep     0c3 2byte cmp.s
+0c4 2byte cpy.d   0c5 2byte cmp.d     0c6 2byte dec.d   0c7 2byte cmp.dil
+0c8 1byte iny     ( c9 see below )    0ca 1byte dex     0cb 1byte wai
+0cc 3byte cpy     0cd 3byte cmp       0ce 3byte dec     0cf 4byte cmp.l
+
+( 0d0 twig bne )     0d1 2byte cmp.diy   0d2 2byte cmp.di  0d3 2byte cmp.siy
+0d4 2byte phe.di  0d5 2byte cmp.dx    0d6 2byte dec.dx  0d7 2byte cmp.dily
+0d8 1byte cld     0d9 3byte cmp.y     0da 1byte phx     0db 1byte stp 
+0dc 3byte jmp.il  0dd 3byte cmp.x     0de 3byte dec.x   0df 4byte cmp.lx
+
+( 0e0 see below ) 0e1 2byte sbc.dxi   0e2 2byte sep     0e3 2byte sbc.s
+0e4 2byte cpx.d   0e5 2byte sbc.d     0e6 2byte inc.d   0e7 2byte sbc.dil
+0e8 1byte inx     ( 0e9 see below )   0ea 1byte nop     0eb 1byte xba 
+0ec 3byte cpx     0ed 3byte sbc       0ee 3byte inc     0ef 4byte sbc.l
+
+( 0f0 twig beq )    0f1 2byte sbc.diy   0f2 2byte sbc.di  0f3 2byte sbc.siy
+0f4 3byte phe.#   0f5 2byte sbc.dx    0f6 2byte inc.dx  0f7 2byte sbc.dily
+0f8 1byte sed     0f9 3byte sbc.y     0fa 1byte plx     ( fb xce see below )
+0fc 3byte jsr.xi  0fd 3byte sbc.x     0fe 3byte inc.x   0ff 4byte sbc.lx
 
 
 \ -----------------------
@@ -454,90 +485,9 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 
 
 \ -----------------------
-\ OPCODE TABLE 
+\ 8/16-BIT HYBRID INSTRUCTIONS
 
-00 2byte brk       01 2byte ora.dxi    02 2byte cop      03 2byte ora.s
-04 2byte tsb.d     05 2byte ora.d      06 2byte asl.d    07 2byte ora.dil
-08 1byte php       ( 09 see below )    0a 1byte asl.a    0b 1byte phd
-0c 3byte tsb       0d 3byte ora        0e 3byte asl      0f 4byte ora.l
-
-10 twig bpl        11 2byte ora.diy    12 2byte ora.di   13 2byte ora.siy
-14 2byte trb.d     15 2byte ora.dx     16 2byte asl.dx   17 2byte ora.dily
-18 1byte clc       19 3byte ora.y      1a 1byte inc.a    1b 1byte tcs
-1c 3byte trb       1d 3byte ora.x      1e 3byte asl.x    1f 4byte ora.lx
-
-( 20 see above )   21 2byte and.dxi    ( 22 see above )  23 2byte and.s
-24 2byte bit.d     25 2byte and.d      26 2byte rol.d    27 2byte and.dil
-28 1byte plp       ( 29 see below )    2a 1byte rol.a    2b 1byte pld
-2c 3byte bit       2d 3byte and. ( !)  2e 3byte rol      2f 4byte and.l
-
-30 twig bmi        31 2byte and.diy    32 2byte and.di   33 2byte and.siy
-34 2byte bit.dxi   35 2byte and.dx     36 2byte rol.dx   37 2byte and.dily
-38 1byte sec       39 3byte and.y      3a 1byte dec.a    3b 1byte tsc
-3c 3byte bit.x     3d 3byte and.x      3e 3byte rol.x    3f 4byte and.lx
-
-40 1byte rti       41 2byte eor.dxi    ( 42 see below )  43 2byte eor.s
-44 blkmov mvp      45 2byte eor.d      46 2byte lsr.d    47 2byte eor.dil
-48 1byte pha       ( 49 see below )    4a 1byte lsr.a    4b 1byte phk
-( 4c see above)    4d 3byte eor        4e 3byte lsr      4f 4byte eor.l
-
-50 twig bvc        51 2byte eor.diy    52 2byte eor.di   53 2byte eor.siy
-54 blkmov mvn      55 2byte eor.dx     56 2byte lsr.dx   57 2byte eor.dily
-58 1byte cli       59 3byte eor.y      5a 1byte phy      5b 1byte tcd
-( 5c see above)    5d 3byte eor.x      5e 3byte lsr.x    5f 4byte eor.lx
-
-60 1byte rts       61 2byte adc.dxi    62 bigtwig phe.r  63 2byte adc.s
-64 2byte stz.d     65 2byte adc.d      66 2byte ror.d    67 2byte adc.dil
-68 1byte pla       ( 69 see below )    6a 1byte ror.a    6b 1byte rts.l
-6c 3byte jmp.i     6d 3byte adc        6e 3byte ror      6f 4byte adc.l
-
-70 twig bvs        71 2byte adc.diy    72 2byte adc.di   73 2byte adc.siy
-74 2byte stz.dx    75 2byte adc.dx     76 2byte ror.dx   77 2byte adc.dily
-78 1byte sei       79 3byte adc.y      7a 1byte ply      7b 1byte tdc
-7c 3byte jmp.xi    7d 3byte adc.x      7e 3byte ror.x    7f 4byte adc.lx
-
-80 twig bra        81 2byte sta.dxi    82 bigtwig bra.l  83 2byte sta.s
-84 2byte sty.d     85 2byte sta.d      86 2byte stx.d    87 2byte sta.dil
-88 1byte dey       ( 89 see below )    8a 1byte txa      8b 1byte phb
-8c 3byte sty       8d 3byte sta        8e 3byte stx      8f 4byte sta.l
-
-90 twig bcc        91 2byte sta.diy    92 2byte sta.di   93 2byte sta.siy
-94 2byte sty.dx    95 2byte sta.dx     96 2byte stx.dy   97 2byte sta.dily
-98 1byte tya       99 3byte sta.y      9a 1byte txs      9b 1byte txy 
-9c 3byte stz       9d 3byte sta.x      9e 3byte stz.x    9f 4byte sta.lx
-
-( a0 see below )  0a1 2byte lda.dxi   ( a2 see below )  0a3 2byte lda.s
-0a4 2byte ldy.d   0a5 2byte lda.d     0a6 2byte ldx.d   0a7 2byte lda.dil
-0a8 1byte tay     ( a9 see below )    0aa 1byte tax     0ab 1byte plb
-0ac 3byte ldy     0ad 3byte lda       0ae 3byte ldx     0af 4byte lda.l
-
-0b0 twig bcs      0b1 2byte lda.diy   0b2 2byte lda.di  0b3 2byte lda.siy
-0b4 2byte ldy.dx  0b5 2byte lda.dx    0b6 2byte ldx.dy  0b7 2byte lda.dily
-0b8 1byte clv     0b9 3byte lda.y     0ba 1byte tsx     0bb 1byte tyx
-0bc 3byte ldy.x   0bd 3byte lda.x     0be 3byte ldx.y   0bf 4byte lda.lx
-
-( c0 see below )  0c1 2byte cmp.dxi   0c2 2byte rep     0c3 2byte cmp.s
-0c4 2byte cpy.d   0c5 2byte cmp.d     0c6 2byte dec.d   0c7 2byte cmp.dil
-0c8 1byte iny     ( c9 see below )    0ca 1byte dex     0cb 1byte wai
-0cc 3byte cpy     0cd 3byte cmp       0ce 3byte dec     0cf 4byte cmp.l
-
-0d0 twig bne      0d1 2byte cmp.diy   0d2 2byte cmp.di  0d3 2byte cmp.siy
-0d4 2byte phe.di  0d5 2byte cmp.dx    0d6 2byte dec.dx  0d7 2byte cmp.dily
-0d8 1byte cld     0d9 3byte cmp.y     0da 1byte phx     0db 1byte stp 
-0dc 3byte jmp.il  0dd 3byte cmp.x     0de 3byte dec.x   0df 4byte cmp.lx
-
-( 0e0 see below ) 0e1 2byte sbc.dxi   0e2 2byte sep     0e3 2byte sbc.s
-0e4 2byte cpx.d   0e5 2byte sbc.d     0e6 2byte inc.d   0e7 2byte sbc.dil
-0e8 1byte inx     ( 0e9 see below )   0ea 1byte nop     0eb 1byte xba 
-0ec 3byte cpx     0ed 3byte sbc       0ee 3byte inc     0ef 4byte sbc.l
-
-0f0 twig beq      0f1 2byte sbc.diy   0f2 2byte sbc.di  0f3 2byte sbc.siy
-0f4 3byte phe.#   0f5 2byte sbc.dx    0f6 2byte inc.dx  0f7 2byte sbc.dily
-0f8 1byte sed     0f9 3byte sbc.y     0fa 1byte plx     ( fb xce see below )
-0fc 3byte jsr.xi  0fd 3byte sbc.x     0fe 3byte inc.x   0ff 4byte sbc.lx
-
-
-\ 8/16-BIT HYBRID INSTRUCTIONS: We have twelve instructions that need to be 
+\ We have twelve instructions that need to be 
 \ handled separately depending on the size of A and/or the X/Y Registers
 
  09 2byte ora.#8     09 3byte ora.#16    defer ora.# 
@@ -598,7 +548,8 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 \ SYNONYMS: We use systematic names ("jmp.l") where WDC defines 
 \ distinct opcodes ("JML"). For people who insist on these, we
 \ we define the WDC codes as synonyms
-: jsl jsr.l ;   : jml jmp.l ;   : per phe.r ;   : rtl rts.l ; 
+\ TODO renable phe.r
+: jsl jsr.l ;   : jml jmp.l ;   ( : per phe.r ; )  : rtl rts.l ; 
 : brl bra.l ;   : pei phe.di ;  : pea phe.# ; 
 
 

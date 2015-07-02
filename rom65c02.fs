@@ -4,9 +4,12 @@
 \ First version: 31. May 2015
 \ This version: 28. Jun 2015 (Tau Day) 
 
+
+\ THIS FILE CURRENTLY WILL NOT ASSEMBLE CORRECTLY
+
 \ After assembly, this creates an 8 kb binary file that can be 
-\ loaded to $E000 a simulator such as the crude65816 which
-\ you can use this as template for your own system
+\ loaded to $E000 a 65c02 simulator such as p65mon you can use this 
+\ as template. No 65816 instructions are used to allow of further testing. 
 
 \ This program is distributed in the hope that it will be useful,
 \ but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -44,7 +47,7 @@
                 00 ldy.#
    -> nxtchr
                 00 lda.diy
-           b> fini beq
+           <? fini beq
             putchr sta
                    iny
             nxtchr bra
@@ -123,4 +126,4 @@
    cr .( ... assembly finished. ) 
 
    \ uncomment next line to save the hex dump to the file "rom.bin"
-   2dup save rom.bin 
+   2dup save rom65c02.bin 
