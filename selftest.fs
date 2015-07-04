@@ -76,7 +76,7 @@
     0001 cpx.#       \ 0e0 01 00 
 
 
-    cr .( ... testing branching, must redefine BOTTOMLINK: ) 
+    cr .( ... testing branching, expecting "redefine bottomlink":) 
 
    -> toplink      nop        \ 0ea
 
