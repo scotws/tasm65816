@@ -15,6 +15,7 @@
 \ GNU General Public License for more details.
 
    hex
+   cr .( THE RESULTING BINARY FILE IS NOT EXECUTABLE) 
    cr .( Starting test suite ... )
 
 \ --- DEFINITIONS ---
@@ -73,9 +74,7 @@
    0ffcc ldx.#       \ 0a2 0cc 0ff
     0001 cpx.#       \ 0e0 01 00 
 
-
     cr .( ... testing branching, expecting "redefine bottomlink":) 
-
    -> toplink      nop        \ 0ea
 
            toplink bra.l      \ 82 0fc 0ff 
@@ -98,19 +97,19 @@
    cr .( ... testing jump/branching arthmetic ... ) 
 
       \ disassembler should point next three intructions to 
-      \ the same address
-    <? preplace 1+ jmp        \ 4c 82 0e0 ; jumps to pastplace
-    <? preplace 1+ bra        \ 80 xx     ; branches to pastplace TODO 
-    <? preplace 1+ bra.l      \ 80 xx xx  ; branches to pastplace TODO 
+      \ the same address, e08b
+    <? preplace 1+ bra        \ 80 07     ; branches to pastplace
+    <? preplace 1+ jmp        \ 4c 8b e0  ; jumps to pastplace
+    <? preplace 1+ bra.l      \ 80 01 00  ; branches to pastplace
 
        -> preplace nop        \ 0ea
       -> pastplace nop        \ 0ea
 
       \ disassembler should point next three intructions to 
-      \ the same address
-      pastplace 1- bra        \ 80 fc    ; branches to preplace 
-      pastplace 1- bra.l      \ 80 f9 ff ; branches to preplace
-      pastplace 1- jmp        \ 4c 87    ; jumps to preplace
+      \ the same address, e08a
+      pastplace 1- bra        \ 80 fc     ; branches to preplace 
+      pastplace 1- bra.l      \ 80 f9 ff  ; branches to preplace
+      pastplace 1- jmp        \ 4c 8a e0  ; jumps to preplace
 
 
    cr .( ... testing move instructions ... ) 
@@ -169,7 +168,19 @@
    82 c, 00 c, 00 c,   0ea c,
 
    \ jump/branch arithmetic
-   
+
+80 07
+4c 8b e0
+80 01 00
+
+0ea
+0ea
+
+80 fc 
+80 f9 ff 
+4c 8a e0 
+
+
 
 \ TODO HIER HIER
 

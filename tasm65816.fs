@@ -224,18 +224,29 @@ variable tofuture  tofuture clear
 
 \ replace dummy references to an RELATIVE offset 
 : dummy>rel          ( buffer-offset -- )
-   \ TODO retrieve offset we saved and add it 
    dup staging +     ( b-off addr ) 
    bc @              ( b-off addr bc ) 
-   rot -  1-         ( addr 65off ) 
-   swap c! ; 
+   rot -  1+         ( addr 65off ) 
+
+   \ Get dummy to enable address math
+   over c@ +         
+
+   swap c! ;         
 
 \ replace dummy references to an RELATIVE LONG offset 
 : dummy>rel.l        ( buffer-offset -- ) 
-   \ TODO retrieve offset we saved and add it 
    dup staging +     ( b-off addr ) 
    bc @              ( b-off addr bc ) 
-   rot -  2 -        ( addr 65off )
+   rot -  1+         ( addr 65off )
+
+   \ get dummy of address math
+   over dup          ( addr 65off addr addr ) 
+   c@                ( addr 65off addr lsb ) 
+   swap char+ c@     ( addr 65off lsb msb ) 
+   lsb/msb>16        ( addr 65off u ) 
+   + 
+
+   \ replace dummy with final result
    16>msb/lsb        ( addr msb lsb )
    rot               ( msb lsb addr ) 
    tuck              ( msb addr lsb addr ) 
@@ -309,7 +320,7 @@ create twigtests
          swap char+ @     ( opr bytes opc xt ) 
 
          tofuture? if execute  ( opr bytes opc ) 
-\           rot lc + -rot  \ dummy must be LC, not zero HERE 
+            rot lc + -rot
          else drop then       
          b,                   ( opr bytes )  \ store opcode 
          twig  
