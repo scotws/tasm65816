@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 04. July 2015 (Independence Day)
+\ This version: 05. July 2015 
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -237,7 +237,6 @@ variable tofuture  tofuture clear
    c!                ( msr addr ) 
    char+ c! ; 
 
-
 \ Build routines to handle these diffent types of future references. 
 \ These routines may require a sonic screwdriver 
 : buildbooth ( xt -- ) ( -- ) 
@@ -347,8 +346,7 @@ create twigtests
 \ -----------------------
 \ SIMPLE OPCODE DEFINITION FUNCTIONS
 
-
-\ As with TIMELESS, the number of bytes only refer to the operand
+\ As with TIMELESS, the number of bytes refers to the operand
 : 0byte  ( opcode -- ) ( -- ) 
    create c,
    does> c@ b, ; 
@@ -363,7 +361,7 @@ create twigtests
 
 \ handle BLOCK MOVE instructions (MVN, MVP), which have a reverse order of
 \ operands in machine code and assembler. BLOCK and MOVE are reserved by Forth
-: blkmove  ( opc -- ) ( opr opr opc -- ) 
+: blkmv  ( opc -- ) ( opr opr opc -- ) 
    create c,
    does> c@ b,          \ Save opcode 
       lsb b,  lsb b, ;  \ save operands in correct sequence
@@ -400,13 +398,13 @@ create twigtests
 ' tardis    3e 2 timeless   rol.x    ' tardis.l  3f 3 timeless   and.lx
 
 40 0byte rti       41 1byte eor.dxi  ( 42 see below )   43 1byte eor.s
-44 blkmove mvp     45 1byte eor.d    46 1byte lsr.d     47 1byte eor.dil
+44 blkmv mvp       45 1byte eor.d    46 1byte lsr.d     47 1byte eor.dil
 48 0byte pha       ( 49 see below )  4a 0byte lsr.a     4b 0byte phk
 ' tardis    4c 2 timeless   jmp      ' tardis    4d 2 timeless   eor 
 ' tardis    4e 2 timeless   lsr      ' tardis.l  4f 3 timeless   eor.l
 
 ' tardis.r  50 1 timeless.r bvc      51 1byte eor.diy   52 1byte eor.di   
-53 1byte eor.siy   54 blkmove mvn    55 1byte eor.dx    56 1byte lsr.dx   
+53 1byte eor.siy   54 blkmv mvn      55 1byte eor.dx    56 1byte lsr.dx   
 57 1byte eor.dily  58 0byte cli      ' tardis    59 2 timeless   eor.y  
 5a 0byte phy       5b 0byte tcd      ' tardis.l  5c 3 timeless   jmp.l 
 ' tardis    5d 2 timeless   eor.x    ' tardis    5e 2 timeless   lsr.x
@@ -581,6 +579,5 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 \ start assembler in emulation mode. Don't use a:8 and xy:8 here
 \ because we don't want to save any bytes to the staging area yet 
 true e-flag !  axy8defines
-
 
 \ END
