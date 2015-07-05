@@ -15,7 +15,7 @@
 \ GNU General Public License for more details.
 
    hex
-   cr .( THE RESULTING BINARY FILE IS NOT EXECUTABLE) 
+   cr cr .( WARNING: THE RESULTING BINARY FILE IS NOT EXECUTABLE) 
    cr .( Starting test suite ... )
 
 \ --- DEFINITIONS ---
@@ -100,7 +100,7 @@
       \ the same address, e08b
     <? preplace 1+ bra        \ 80 07     ; branches to pastplace
     <? preplace 1+ jmp        \ 4c 8b e0  ; jumps to pastplace
-    <? preplace 1+ bra.l      \ 80 01 00  ; branches to pastplace
+    <? preplace 1+ bra.l      \ 82 01 00  ; branches to pastplace
 
        -> preplace nop        \ 0ea
       -> pastplace nop        \ 0ea
@@ -108,7 +108,7 @@
       \ disassembler should point next three intructions to 
       \ the same address, e08a
       pastplace 1- bra        \ 80 fc     ; branches to preplace 
-      pastplace 1- bra.l      \ 80 f9 ff  ; branches to preplace
+      pastplace 1- bra.l      \ 82 f9 ff  ; branches to preplace
       pastplace 1- jmp        \ 4c 8a e0  ; jumps to preplace
 
 
@@ -168,30 +168,14 @@
    82 c, 00 c, 00 c,   0ea c,
 
    \ jump/branch arithmetic
-
-80 07
-4c 8b e0
-80 01 00
-
-0ea
-0ea
-
-80 fc 
-80 f9 ff 
-4c 8a e0 
-
-
-
-\ TODO HIER HIER
-
+   80 c, 07 c,  4c c, 8b c, 0e0 c,  82 c, 01 c, 00 c,
+   0ea c, 0ea c,  80 c, 0fc c,  82 c, 0f9 c, 0ff c, 
+   4c c, 8a c, 0e0 c, 
 
    \ block moves 
-
    44 c, 0a c, 00 c,   54 c, 00 c, 0ff c, 
 
-
    \ end of assembly
-
    0db c, 
    
 
@@ -203,7 +187,9 @@
    \ validate: make sure staging area and coredump are equal
    : comparedumps ( addr n -- addr n ) 
       dup 0  do  staging i + c@   correctdump i + c@
-         = invert if ." Error at byte " i . cr  true errorflag !  then 
+         = invert if ." Error at byte " i . ." : Have " 
+         staging i + c@ . ." but should have: " correctdump i + c@ . cr
+         true errorflag !  then 
       loop ; 
 
    : .flagstatus ( f -- ) 

@@ -1,4 +1,3 @@
-
 \ Code and fragements we might still need later. This file will go bye-bye once
 \ a feature-stable version is reached. Do not try to execute this file.
 
