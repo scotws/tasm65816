@@ -120,6 +120,9 @@ create splittable
 : end  ( -- addr u )  staging  bc @ ; 
 
 \ save assembled program to file, overwriting any file with same name
+\ WARNING: In some cases, it seems that the file content is only written
+\ to the drive when Gforth is closed; before then, an empty file will
+\ be created
 : save ( addr u "name" -- )
    parse-name w/o create-file
    drop write-file if 
@@ -178,7 +181,7 @@ variable tofuture  tofuture clear
 : <? ( "name" -- addr )  
       addlabel 
       here 1 cells -  tofuture !  \ save location of xt slot
-      0 ;                         \ push dummy address on the stack 
+      0 ;                         \ push a dummy address on the stack 
 
 \ REPLACEMENT ROUTINES for various forward branches. These are used by ->
 \ once we know the actual address we will be jumping or branching to so
@@ -221,6 +224,7 @@ variable tofuture  tofuture clear
 
 \ replace dummy references to an RELATIVE offset 
 : dummy>rel          ( buffer-offset -- )
+   \ TODO retrieve offset we saved and add it 
    dup staging +     ( b-off addr ) 
    bc @              ( b-off addr bc ) 
    rot -  1-         ( addr 65off ) 
@@ -228,6 +232,7 @@ variable tofuture  tofuture clear
 
 \ replace dummy references to an RELATIVE LONG offset 
 : dummy>rel.l        ( buffer-offset -- ) 
+   \ TODO retrieve offset we saved and add it 
    dup staging +     ( b-off addr ) 
    bc @              ( b-off addr bc ) 
    rot -  2 -        ( addr 65off )
@@ -264,6 +269,7 @@ variable tofuture  tofuture clear
          swap char+     ( opr bytes addr+1 ) 
          dup c@         ( opr bytes addr+1 opc )
          swap char+ @   ( opr bytes opc xt ) 
+
          tofuture? if execute           
             else drop then    ( opr bytes opc ) 
          b,             ( opr bytes )  \ store opcode 
@@ -302,11 +308,12 @@ create twigtests
          dup c@           ( opr bytes addr+1 opc )
          swap char+ @     ( opr bytes opc xt ) 
 
-         tofuture? if execute ( opr bytes opc ) 
-            rot  lc +  -rot  \ dummy must be LC, not zero
+         tofuture? if execute  ( opr bytes opc ) 
+\           rot lc + -rot  \ dummy must be LC, not zero HERE 
          else drop then       
          b,                   ( opr bytes )  \ store opcode 
-         twig  split&save ;   \ store operands
+         twig  
+         split&save ;   \ store operands
 
 
 \ -----------------------

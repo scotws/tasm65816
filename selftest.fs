@@ -2,12 +2,12 @@
 \ A Typist's 65816 Assembler in Forth
 \ Scot W. Stevenson <scot.stevenson@gmail.com>
 \ First version: 12. Jun 2015
-\ This version: 03. Jul 2015
+\ This version: 05. Jul 2015
 
 \ This is a primitive testing suite. Load it after starting Gforth with 
 \ "gforth -m 1G" and "include tasm65816.fs" with the instruction
 \ "include test.fs". This will create a test.bin binary file for an 
-\ emulator, and also print its own testing results. 
+\ emulator while printing the testing results
 
 \ This program is distributed in the hope that it will be useful,
 \ but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -21,8 +21,6 @@
 
    0e000 origin  \ required  
 
-   00f001 value putchr  \ py65mon address for character output
-   00f004 value getchr  \ py65mon address to receive character input
 
 \ --- TESTING IMMEDIATE MODE --- 
 
@@ -94,7 +92,26 @@
      <? bottomlink jsr.l      \ 22 81 0e0 00
      <? bottomlink bra.l      \ 82 00 00       
 
-   -> bottomlink   nop        \ 0ea 
+   -> bottomlink   nop        \ 0ea ; this is ORIGIN +81, eg 00e081 
+
+
+   cr .( ... testing jump/branching arthmetic ... ) 
+
+      \ disassembler should point next three intructions to 
+      \ the same address
+    <? preplace 1+ jmp        \ 4c 82 0e0 ; jumps to pastplace
+    <? preplace 1+ bra        \ 80 xx     ; branches to pastplace TODO 
+    <? preplace 1+ bra.l      \ 80 xx xx  ; branches to pastplace TODO 
+
+       -> preplace nop        \ 0ea
+      -> pastplace nop        \ 0ea
+
+      \ disassembler should point next three intructions to 
+      \ the same address
+      pastplace 1- bra        \ 80 fc    ; branches to preplace 
+      pastplace 1- bra.l      \ 80 f9 ff ; branches to preplace
+      pastplace 1- jmp        \ 4c 87    ; jumps to preplace
+
 
    cr .( ... testing move instructions ... ) 
 
@@ -104,8 +121,11 @@
            0ff 00 mvn         \ 54 00 0ff
 
 
+
 \ ----------------------------------- 
    cr .( ... testing finished. ) cr
+
+                  stp         \ 0db
 
    end 
 
@@ -141,7 +161,6 @@
    0e0 c, 01 c, 00 c, 
 
    \ branch testing
- 
    0ea c,   82 c, 0fc c, 0ff c,   80 c, 0fa c, 
    4c c, 5a c, 0e0 c,    20 c, 5a c, 0e0 c, 
    5c c,  5a c, 0e0 c, 00 c,    22 c, 5a c, 0e0 c, 00 c,    
@@ -149,11 +168,21 @@
    5c c, 81 c, 0e0 c, 00 c,    22 c, 81 c, 0e0 c, 00 c,    
    82 c, 00 c, 00 c,   0ea c,
 
+   \ jump/branch arithmetic
+   
+
+\ TODO HIER HIER
+
+
    \ block moves 
 
    44 c, 0a c, 00 c,   54 c, 00 c, 0ff c, 
 
 
+   \ end of assembly
+
+   0db c, 
+   
 
 \ --- VALIDATION ROUTINES ---
 
