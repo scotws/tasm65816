@@ -2,10 +2,7 @@
 \ A Typist's 65816 Assembler in Forth
 \ Scot W. Stevenson <scot.stevenson@gmail.com>
 \ First version: 31. May 2015
-\ This version: 28. Jun 2015 (Tau Day)
-
-\ THIS FILES IS CURRENTLY OUT OF DATE
-
+\ This version: 06. July 2015
 
 \ Remember this is assembler source file is actually a Forth programm listing
 \ as far as Forth is concerned. As such, the file type should be .fs instead
@@ -15,16 +12,23 @@
 \ INCLUDE tasm65816.fs, INCLUDE example.fs  However, do not try to run the 
 \ resulting code, which contains infinite loops!
 
-        \ we can use all the normal Forth commands; HEX should actually be 
-        \ redundant
+        \ we can use all the normal Forth commands, which is why this line
+        \ is a comment. The semicolon will not work for comments
+        
+        \ HEX should actually be redundant, but still. Now we get rid of
+        \ all those nasty dollar signs. If you need decimal, just use 
+        \ the Forth command DECIMAL
         hex
 
         \ comments marked with .( will be printed during assembly
+        cr .( WARNING: DO NOT TRY TO EXECUTE THE RESULTING CODE ) 
         cr .( Starting assembly ... )
 
-        \ .origin sets target address on 65816 machine. This is REQUIRED. 
-        \ use leading zeros with hex numbers to make double sure they are 
-        \ not interpreted as words by Forth 
+        \ ORIGIN sets the target address on 65816 machine. If you don't
+        \ provide this, the code will start to assemble at 000000, or 
+        \ at the beginning of a bank. Note we start hex numbers that start
+        \ with a letter with an extra zero so there can be no confusion
+        \ with a Forth command
         0c000 origin
 
         \ The assembler starts out with the assumption that the processor is
@@ -34,14 +38,18 @@
 
         \ because this is actually a Forth file, we can put more than one 
         \ instruction in a row. See MANUAL.txt for spacing conventions
-        nop nop 
+        nop nop nop nop nop 
 
-        \ instructions that have an operand put it before the opcode (the 
+        \ Oh, and we can put comments in brackets right in the middle of 
+        \ the code
+        nop ( not again! ) nop ( stop! ) nop ( help! ) nop 
+
+        \ Instructions that have an operand put it before the opcode (the 
         \ Forth "reverse polish notation" (RPN) or "postfix" thing). See 
         \ MANUAL.txt for the syntax of various addressing modes
-          00 lda.#     \ conventional syntax: lda #$00
+          00 lda.#     \ conventional syntax: LDA #$00
              tax
-        1020 sta.x     \ conventional syntax: sta $1020,x
+        1020 sta.x     \ conventional syntax: STA $1020,X
 
         \ Special case: AND gets a dot in absolute mode to distinguish it 
         \ from the Forth command of the same name
@@ -63,14 +71,14 @@
         556677 lw,         \ results in 77 66 55
 
         \ store strings with a combination of S" and STR, (S, is reserved 
-        \ by gforth). There are also words to store strings zero-terminated
+        \ by Gforth). There are also words to store strings zero-terminated
         \ or linefeed-terminated
         s" cats are cool" str, 
 
         \ define variables with VALUE instead of a special command such as
         \ ".EQU" because this is Forth
         88 value animal 
-             animal lda.#
+             animal lda.d
 
         \ conditional assembly is trivial with Forth 
         : cat? ( u --- ) 
@@ -84,7 +92,7 @@
         lc 2 +   jmp 
                  nop 
 
-        \ we define labels with "->" (yes, "-->" would be easier to read, 
+        \ we define labels with "->" ("-->" would be easier to read, 
         \ but it is already used by ancient Forth BLOCK commands). Put 
         \ the word at the very beginning of the line or the indent level
         -> hither
@@ -92,7 +100,6 @@
         \ backward jumps: just put the label (or absolute address) first,
         \ no other commands required
           hither jmp 
-                 nop
 
         \ backward branches: work the same, because branch instructions 
         \ assume they will be handed either absolute addresses or labels 
@@ -102,16 +109,13 @@
         \ assembler by adding the offset in bytes to the current address
         \ (note this might warrent a separate word in future)
                  nop 
-        lc 1-    bra 
+           lc 1- bra 
 
         \ forward jumps are a pain in the rear for single-pass assemblers
-        \ (which is what this is). We deal with this by having all forward
-        \ jumps prefixed with "J>" 
-        j>  frog jsr
-
-        \ the same is true with all forward branches, we use "B>". 
-        \ You can have both B> and J> point to the same link
-        b>  frog bne
+        \ (which is what this is). We solve this by adding a sick amount 
+        \ of code unter the hood and the future branch directive <?. This
+        \ is the same for branches, jumps and subroutine calls.
+         <? frog jsr
 
         \ once we have defined the label, we can go back to using normal
         \ links as above
@@ -121,7 +125,7 @@
             frog bra
 
         \ ready for the big times? Then lets switch to 16-bit mode
-        native  a:16 xy:16 
+        native a:16 xy:16 
 
         \ let's make sure that really worked 
         : a16assert ( -- ) a=16? if  cr ." Yes, A is 16 bits" cr then ; 
@@ -137,11 +141,12 @@
         \ more comments printed to the screen
         .( all done.) cr 
 
-        \ end assembly, put buffer address and length of compiled machine 
+        \ End assembly, put buffer address and length of compiled machine 
+        \ This is required to get to the next step
         end            
 
         \ or have the machine print out the hex code at the end itself
         cr 2dup dump
 
         \ uncomment next line to save the hex dump to the file "example.bin"
-        \ .save example.bin 
+        \ 2dup save example.bin 

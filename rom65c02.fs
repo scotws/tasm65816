@@ -4,9 +4,6 @@
 \ First version: 31. May 2015
 \ This version: 28. Jun 2015 (Tau Day) 
 
-
-\ THIS FILE CURRENTLY WILL NOT ASSEMBLE CORRECTLY
-
 \ After assembly, this creates an 8 kb binary file that can be 
 \ loaded to $E000 a 65c02 simulator such as p65mon you can use this 
 \ as template. No 65816 instructions are used to allow of further testing. 
@@ -21,7 +18,7 @@
 
 \ --- DEFINITIONS ---
 
-   0e000 origin  \ required  
+   0e000 origin 
 
    00f001 value putchr  \ py65mon address for character output
    00f004 value getchr  \ py65mon address to receive character input
@@ -56,10 +53,9 @@
                    rts
 
 \ --- MACROS ---
-\ In contrast to normal assemblers, our macros don't do so well if 
-\ they are first in the file. In this case, putting .STR here lets 
-\ us access the strings and call the prtstr subroutine without 
-\ much hassle
+\ There are no real "macros" in the traditional sense because we have the
+\ whole Forth language as a basis. Define words normally in the assembler
+\ code to use as macros:
 
    \ Macro to print one linefeed. Assumes A in 8-bit mode
    : .linefeed  ( -- )   
@@ -84,10 +80,6 @@
    \ All of our vectors go here because we're cheap 
    -> vectors 
 
-   \ Make sure we're in the right mode after the vector jump
-   \ because who knows where we came from 
-   emulated  axy:8
-
    \ Print the intro string
    intro .str   
          .linefeed 
@@ -100,15 +92,8 @@
                    dey
              nexta bne
 
-   \ Do some math so we get to switch 8- and 16-bits around
-                   axy:16
-              1000 lda.# 
-                   clc 
-              20aa adc.# 
-                10 sta.d 
-
-   \ Done with all of this 
-                   stp 
+    \ That's about enough for today. Note signature byte with BRK
+                01 brk
 
 
 \ --- INTERRUPT VECTORS --- 

@@ -4,5 +4,6 @@ Scot W. Stevenson <scot.stevenson@gmail.com>
 
 Add new entries to the top
 
-
-31. May 2015 - Copied base files from tasm65c02 project
+06. July 2015 - BETA version finished. 
+12. June 2015 - Introduced project on 6502.org
+31. May 2015  - Copied base files from tasm65c02 project. 

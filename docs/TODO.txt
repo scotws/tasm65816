@@ -1,12 +1,9 @@
 TODO for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 03. July 2015
+This version: 06. July 2015
 
-This is ALPHA software, so not much works at this point, and less is tested. 
+This is BETA software, so it needs more testing. A lot more testing. New features will be considered after some real-world experience with the assembler. 
 
-- Go through the opcode table and futureproof everything that needs to be
-- Rewrite example.fs to make more sense
-- Test modifications of labels, eg " <? gothere 1+ jmp "
-
+- Add nag lines when synonyms such as PEI are used
 
