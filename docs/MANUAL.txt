@@ -1,53 +1,77 @@
 The Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 06. July 2015 
+This version: 07. July 2015 
 
-(THIS DOCUMENT IS WORK IN PROGRESS)
 
 TL;DR
 
 This is a one-pass cross-assembler for the 65816 8/16-bit hybrid CPU. 
 
-  - it is written in modern ANSI-orientated Forth (Gforth 0.7).
-  - its syntax ("Typist's Assembler Format") is optimized for ten-finger
+  - it is written in ANSI-orientated Forth (Gforth 0.7).
+  - its syntax ("Typist's Assembler Notation") is optimized for ten-finger
     typists
   - it has true labels
   - it has a simple, brute-force structure that should make it easy to port
     to other processors
 
-We don't care about stuff like memory footprints or speed because the assembler runs on normal PCs. To get it running, you'll need to start Gforth with extra memory, see below.
+We don't care about stuff like memory footprints or speed because the assembler
+runs on normal PCs. To get it running, you'll need to start Gforth with extra
+memory, see below.
 
 
-SERIOUSLY, DUDE, WHY?
+SERIOUSLY, WHY?
 
 Forth is a fantastic language to write assemblers in - 
 
 
-DUDE, WHAT'S FORTH?
+DUDE, ISN'T FORTH SOME ANCIENT LANGUAGE LIKE COBOL?
 
-Forth is usually classified as a programming language, though it's actually an environment to create tailor-made programming languages in. An introduction to Forth is beyond the scope of this document, see https://en.wikipedia.org/wiki/Forth_(programming_language) for general background and "Thinking Forth" by Leo Brodie (http://thinking-forth.sourceforge.net/) for a philosophical discussion. 
+Forth is usually classified as a programming language, though it's actually an
+environment to create tailor-made programming languages in. It is still very
+much in use, for instance with the Cassini-Huygens probe at Saturn or NEAR
+Shoemaker comet lander. An introduction to Forth is beyond the scope of this
+document, see https://en.wikipedia.org/wiki/Forth_(programming_language) for
+general background and "Thinking Forth" by Leo Brodie
+(http://thinking-forth.sourceforge.net/) for a philosophical discussion. 
 
-Anyway, people kept telling me Forth was a fantastic language to write assemblers in, so I decided to see if was as easy as they kept saying. First, I wrote a version for the 65c02, A Typist's Assembler for the 65c02 in Forth (https://github.com/scotws/tasm65c02). Using that as a base, I wrote this program for its big brother, the 65816. 
+Anyway, people kept telling me Forth was a fantastic language to write
+assemblers in, so I decided to see if was as easy as they kept saying. First, I
+wrote a version for the 65c02, A Typist's Assembler for the 65c02 in Forth
+(https://github.com/scotws/tasm65c02). Using that as a base, I then wrote this
+program for its big brother, the 65816. 
 
 
 HASN'T THAT BEEN DONE BEFORE?
 
-Actually, no. Though there are lots of great assemblers for the 6502/65c02 out there -- see http://www.6502.org/tools/ for a list -- including a few in Forth, there are none for the 65816 that I know of. I never liked the standard assembler syntax for the 6502 anyway, and I certainly don't like the version for the new modes of the 65816 with all the square brackets and what not. As with the first assembler, I was aiming for something that would work well for a ten-finger typist. 
+Actually, no. Though there are lots of great assemblers for the 6502/65c02 out
+there -- see http://www.6502.org/tools/ for a list -- including a few in Forth,
+there are none for the 65816 that I know of. I never liked the standard
+assembler syntax for the 6502 anyway, and I certainly don't like the version
+for the new modes of the 65816 with all the square brackets and what not. As
+with the first assembler, I was aiming for something that would work well for a
+ten-finger typist. 
 
 
 SO LET'S SEE THIS NEW SYNTAX OF YOURS
 
-There are two parts: A series of new opcodes -- the actual Typist's Assembler notation -- and the "postfix" notation (aka "ass-backwards") that comes with Forth.
+There are two parts to this: A series of new mnemonics -- the actual Typist's
+Assembler Notation (TAN) -- and the "postfix" notation (aka "ass-backwards")
+that comes with Forth.
 
-Starting with the second part: The operand comes first, followed by a special version of the opcode that includes the addressing mode as an addition to the "core" opcode following a dot. This is the opcode's "tail" (because it would get confusing if we called it "postfix" as well). For example, 
+Starting with the second part: The operand comes first, followed by a special
+version of the mnemonic that includes the addressing mode as an addition to the
+"core" mnemonic following a dot. We call this the opcode's "tail" (because it
+would get confusing if we called it "postfix" as well). For example, 
 
     LDA $10       becomes         10 lda.d    
 
-The new opcodes are justified along the space between them and the operand. 
-Note we don't have to use "$", "%" or "#" for the number formats because we can use HEX, BINARY, and DECIMAL from normal Forth. The complete list of addressing modes for the 65816 is: 
+The new mnemonics are justified along the space between them and the operand.
+Note we don't have to use "$", "%" or "#" for the number formats because we can
+use HEX, BINARY, and DECIMAL from normal Forth. The complete list of addressing
+modes for the 65816 is: 
 
-    MODE                      WDC SYNTAX       TYPIST'S SYNTAX (FORTH)
+    MODE                      WDC SYNTAX       TYPIST'S (FORTH VERSION)
 
     implied                   DEX                    dex
     accumulator               INC                    inc.a
@@ -74,7 +98,13 @@ Note we don't have to use "$", "%" or "#" for the number formats because we can 
     stack rel ind y indexed   LDA (3,S),Y          3 lda.siy  (65816)
     block move                MVP 0,0            0 0 mvp      (65816) 
 
-Note that the "i" (for "indirect") is put where the parenthesis is in normal notation (compare lda.dxi and lda.diy). The Branch instruction family is treated differently, because we assume that usually a label will be used instead of the actual offset. Immediate addressing has keep the hash sign ("#") because it is a "lower case" special character (at least on my German keyboard), it's very ingrained, and we avoid conflicts with the "i" used for indirect mode. A more complex example: 
+Note that the "i" (for "indirect") is put where the parenthesis is in normal
+notation (compare lda.dxi and lda.diy). The Branch Instruction family is
+treated differently, because we assume that usually a label will be used
+instead of the actual offset. Immediate addressing keeps the hash ("#") because
+it is a "lower case" special character (at least on my German keyboard), it's
+very ingrained, and we avoid conflicts with the "i" used for indirect mode. A
+more complex example: 
 
               LDA #$00                        00 lda.#
               TAX                                tax
@@ -83,58 +113,69 @@ Note that the "i" (for "indirect") is put where the parenthesis is in normal not
               DEX                                dex
               BNE loop1                    loop1 bne
 
-Like Forth itself, the reverse order takes some getting used to, but works fine with some experience. Note that nothing in the Typist's Assembler Notation make the postfix notation necessary; you could, say, write a two-pass assembler in Python and the above example would be
+Like Forth itself, the reverse order takes some getting used to, but works fine
+with some experience. Note that nothing in the TAN makes the postfix notation
+necessary; you could, say, write a two-pass assembler with normal notation in
+something like Python and the above example would be
 
-                lda.# 00
-                tax
-       -> loop1 
-                sta.x 1000
-                dex
-                bne loop1 
+              lda.# 00
+              tax
+    -> loop1 
+              sta.x 1000
+              dex
+              bne loop1 
 
 Currently, there is no such assembler. 
 
 
-OPCODE SYNONYMS
+MNEMONIC SYNONYMS
 
-Lots of people, however, are use to the offical WDC version of commands, so
-we provide some synonyms: 
+Understandably, a lots of people are use to the official WDC version of
+commands, so we provide some synonyms: 
 
-        Opcode    WDC         Systematic     Synonym
-        hex       Code        version 
+        Opcode    WDC        Systematic     Synonym
+        hex       Code       version 
 
-        82        BRL         bra.l          brl
-        5c        JML         jmp.l          jml
-        22        JSL         jsr.l          jsl
-        f4        PEA         phe.#          pea
-        d4        PEI         phe.di         pei
-        62        PER         phe.r          per
-        6b        RTL         rts.l          rtl
+        82        BRL        bra.l          brl
+        5c        JML        jmp.l          jml
+        22        JSL        jsr.l          jsl
+        f4        PEA        phe.#          pea
+        d4        PEI        phe.di         pei
+        62        PER        phe.r          per
+        6b        RTL        rts.l          rtl
 
-The use of the systematic names is encouraged, the synonyms are just for new users. In future, their use might trigger a warning.
+The use of the systematic names is encouraged, the synonyms are just for new
+users. 
 
 
 SPECIAL CASES
 
-Where Forth words conflict with the opcodes, we add a dot to the opcode, but leave off the tail in absolute mode. At the moment, that only affects AND in absolute mode: 
+Where Forth words conflict with the mnemonics, we add a dot to the mnemonic,
+but leave off the tail in absolute mode. At the moment, that only affects AND
+in absolute mode: 
 
-        AND $1000  is   1000 and. 
+        AND $1000   is   1000 and. 
 
-The PER command (push effective relative address) uses the ending .r 
+The PER command (Push Effective Relative Address) uses the tail ".r"
 
         PER        is        phe.r 
 
-In theory, the branch commands should be given this ending as well, but this would mean change for chages' sake. The block move commands MVN and MVP are entered as
+In theory, the branch commands should be given this ending as well, but this
+would mean change for change's sake. The block move commands MVN and MVP are
+entered as
 
         <src> <dest> mvp|mvn
 
-There is no comma or other separater. The assembler assumes source and destination to be each one byte, and will only recognize the least significant byte, where as conventional assemblers will strip an address so that the block is left over. Note that internally, the operands are stored in the reverse sequence as machine code - "<opcode> <dest> <src>". 
-
+Note there is no comma or other separator. The assembler assumes source and
+destination to be each one byte, and will only recognize the least significant
+byte, where as conventional assemblers will strip an address so that the block
+is left over. Note that internally, the operands are stored in the reverse
+sequence as machine code - "<opcode> <dest> <src>". 
 
 
 CALLING THE ASSEMBLER
 
-So, more hands on. Start Gforth with extra memory, something like 
+So, hands on. Start Gforth with extra memory, something like 
 
         gforth -m 1G 
 
@@ -142,170 +183,226 @@ which is more than plenty. Then, INCLUDE the assembler:
 
         include tasm65816.fs
 
-Do the same with your source file, in this case rom65c02.fs. 
+Do the same with your source file, for example rom65c02.fs. 
 
         include rom65c02.fs
 
-You will be left with ( addr u ) on the stack, describing the beginning of the machine code and the number of bytes in it. 
-
-
+You will be left with ( addr u ) on the Forth stack, describing the beginning
+of the machine code and the number of bytes in it. 
 
 
 EXAMPLES
 
 Included in this package are two larger example files: 
 
-example.fs - Heavily commented, but won't produce working code if assembled. 
+  example.fs - Heavily commented, but won't produce working code if assembled  
         
-rom65c02.fs - Fewer comments, but will produce a working 8k image for the 65c02 -- no 65816 instructions -- that can be tested with an emulator such as py65mon ( or the Crude 65816 Emulator https://github.com/scotws/crude65816 once it is finished).
+  rom65c02.fs - Fewer comments, but will produce a working 8k image for the 65c02
+  -- no 65816 instructions -- that can be tested with an emulator such as py65mon
+  ( or the Crude 65816 Emulator https://github.com/scotws/crude65816 once it is
+  finished) 
 
 
 COMMENTS, SPACING, AND MULTIPLE COMMANDS
 
-Since this is Forth, you start out with the complete set of Forth commands you can use in the assembler program. This means that comments are marked by a "\" that comments out everything to the end of the line (the ";" of conventional assemblers), and anything in round brackets is ignored as well.
+Since this is Forth, you start out with everything in the language available in
+the assembler as well. This means that comments are marked by a "\" which
+comments out everything to the end of the line (the ";" of conventional
+assemblers) Anything in round brackets is ignored as well.
 
-                00 lda.d   ( this is a comment ) 
-                01 sta.d   \ this comment takes out the rest of the line 
+                00 sta.d   \ this comment takes out the rest of the line 
+                01 lda.d   ( this is a comment ) 
 
-Since this is not a normal assembler, but Forth, we can put more than one instructions in one line, though this can make reading the code harder and
-is not recommended. 
+Since this is not a normal assembler, but Forth, we can put more than one
+instruction in one line, though this can make reading the code harder and is
+not recommended. 
 
                 10 lda.d   1000 sta
                 11 lda.d   1001 sta 
 
                 nop nop nop nop nop 
 
-(Of course, if we have lots of instructions that are all the same, we might use Forth to write a macro anyway:
+(Of course, if we have lots of instructions that are all the same, we might use
+Forth to write a macro:
 
              : n-nops  ( u -- )  0 ?do  nop  loop ; 
              5 n-nops 
 
-(Remember to use ?DO instead of just do on an ANSI Forth system such as this one to prevent "0 0" loops that go through the complete number space. Fig-FORTH users don't have this problem.) 
+Remember to use ?DO instead of just do on an ANSI Forth system such as this
+one to prevent "0 0" loops that go through the complete number space. Fig-FORTH
+users don't have this problem.) 
 
 For more on style conventions, see below.
 
 
-ASSEMBLER COMMANDS
+ASSEMBLER DIRECTIVES
 
-For quick typing, all commands are lower case, but will be listed here in upper case for quicker reference. In keeping with Forth conventions, assembler commands are not prefixed with with a dot -- in Forth, these are words that print something to the screen. 
+To enable fast typing, all directives are lower case just like the mnemonics,
+but will be listed in the text as upper case for quicker reference. In keeping
+with Forth conventions, assembler directives are not prefixed with with a dot --
+in Forth, these are words that print something to the screen. 
 
-    ORIGIN ( 65addr -- ) Tells the assembler where to start compilation in the 65816 64k 16-bit address space of a bank (not a 24-bit complete address). If no such word is provided, assembly starts at 000000. 
+ORIGIN ( 65addr -- ) Tells the assembler where to start compilation. If no such
+word is provided, assembly starts at 000000. Programs assembled in that way,
+with a little care, can be written to be relocated to the beginning of any
+bank of the 65816.
 
-    EMULATED ( -- ) Switch to emulated (8-bit) mode. Encodes the SEC XCE sequence (among other things). Note the assembler starts off with the assumption that we are in this mode. 
+EMULATED ( -- ) Switch to emulated (8-bit) mode. Encodes the SEC XCE sequence.
+Note the assembler starts off with the assumption that we are in this mode. 
 
-    NATIVE ( -- ) Switch to native (16-bit) mode. Encodes the CLC XCE sequence (among other things).  
+NATIVE ( -- ) Switch to native (16-bit) mode. Encodes the CLC XCE sequence.  
 
-    MODE? ( -- f ) Return flag showing the mode the assembler thinks it is in. Emulation mode returns "true", native mode "false". 
+MODE? ( -- f ) Return flag showing the mode the assembler thinks it is in.
+Emulation mode returns "true", native mode "false". 
 
-    A:8 ( -- ) Switch Accumulator to 8-bit mode. Encodes the SEP $20 sequence. Note that we use a colon in this command because shorter forms such as A8 would run the risk of being interpreted as a hex number. Please use this (and the following commands) to switch modes, because they let the assembler know what mode it is it.
+A:8 ( -- ) Switch Accumulator to 8-bit mode. Encodes the SEP $20 sequence. Note
+that we use a colon in this directive because shorter forms such as A8 would
+run the risk of being interpreted as a hex number. Use this (and the following
+directives) to switch modes, because they let the assembler know what mode it
+is it.
 
-    A:16 ( -- ) Switch Accumulator to 16-bit mode. Encodes the REP $20 sequence. Note that the assembler will happily let you try to switch to 16-bits even if you are in emulated mode. 
+A:16 ( -- ) Switch Accumulator to 16-bit mode. Encodes the REP $20 sequence.
+Note that the assembler will happily let you try to switch to 16-bits even if
+you are in emulated mode, currently without any warning. 
 
-    XY:8 ( -- ) Switch X and Y to 8-bit mode. Encodes the SEP $10 sequence. 
+XY:8 ( -- ) Switch X and Y to 8-bit mode. Encodes the SEP $10 sequence. 
 
-    XY:16 ( -- ) Swtich X and Y to 16-bit mode. Encodes the REP $10 sequence.
+XY:16 ( -- ) Switch X and Y to 16-bit mode. Encodes the REP $10 sequence.
 
-    AXY:8 ( -- ) Switch A, X, and Y to 8-bit mode. Encodes the SEP $30 sequence.
+AXY:8 ( -- ) Switch A, X, and Y to 8-bit mode. Encodes the SEP $30 sequence.
 
-    AXY:16 ( -- ) Switch A, X and Y to 16-bit mode. Encodes the REP $30 sequence. 
+AXY:16 ( -- ) Switch A, X and Y to 16-bit mode. Encodes the REP $30 sequence. 
 
-    A=8? ( -- f ) Check if Accumulator is in 8-bit mode. This instruction and its variants below are provided to allow assertation of the mode we think should be active. 
+A=8? ( -- f ) Check if Accumulator is in 8-bit mode. This directive and its
+variants below are provided to allow assertion of the mode we think should be
+active. 
 
-    A=16? ( -- f ) Check if Accumulator is in 16-bit mode. 
+A=16? ( -- f ) Check if Accumulator is in 16-bit mode. 
 
-    XY=8? ( -- f ) Check if X and Y registers are in 8-bit mode. 
+XY=8? ( -- f ) Check if X and Y registers are in 8-bit mode. 
 
-    XY=16? ( -- f ) Check if X and Y registers are in 16-bit mode. 
+XY=16? ( -- f ) Check if X and Y registers are in 16-bit mode. 
 
-    B, ( u -- ) Store one byte in memory. Do not use the normal C, Forth 
-instruction, because we're not putting the code in the Dictionary, but in what we call the "staging area".
+B, ( u -- ) Store one byte in memory. Do not use the normal "C," Forth
+instruction, because we're not putting the code in the Forth Dictionary, but in
+what is called the "staging area".
 
-    W, ( u -- ) Store one word (16 bit) in memory in correct little-endian format. 
+W, ( u -- ) Store one word (16 bit) in memory in correct little-endian format. 
 
-    LW, ( u -- ) Store one long word (24 bit) in memory in correct little-endian format. 
+LW, ( u -- ) Store one long word (24 bit) in memory in correct little-endian
+format. 
 
-    STR, ( addr u -- ) Store a ASCII string in memory. Use with S" STRING". Note that Gforth uses S, so we can't. 
+STR, ( addr u -- ) Store a ASCII string in memory. Use with S" STRING". Note
+that Gforth uses S, so we can't. 
 
-    STR0, (addr u -- ) Store a zero-terminated string in memory. Use with
-S" STRING".
+STR0, (addr u -- ) Store a zero-terminated string in memory. Use with S"
+STRING".
 
-    STRLF, (addr u -- ) Store a linefeed-terminated string in memory. Use 
-with S" STRING".
+STRLF, (addr u -- ) Store a linefeed-terminated string in memory. Use with S"
+STRING".
 
-    LSB ( u -- u ) returns the least significant byte of a 16-bit number
+LSB ( u -- u ) returns the least significant byte of a 24-bit number
 
-    MSB ( u -- u ) returns the most significant byte of a 16-bit number
+MSB ( u -- u ) returns the most significant byte of a 24-bit number
 
-    BANK ( u -- u ) returns the bank byte of a 24-bit number
+BANK ( u -- u ) returns the bank byte of a 24-bit number
 
-    ADVANCE ( 65addr -- ) Continue assembly at the address given, filling everything between here and there with zeros.
+ADVANCE ( 65addr -- ) Continue assembly at the address given, filling
+everything between here and there with zeros.
 
-    END ( -- addr u ) End assembly, returning the address in Forth's memory where the first assembled instruction was saved and the length of the binary file. Use command such as DUMP to print it to the screen. 
+END ( -- addr u ) End assembly, returning the address in Forth's memory where
+the first assembled instruction was saved and the length of the binary file.
+Use command such as DUMP to print it to the screen. 
 
-    SAVE ( addr u "name" -- ) Following END, save the binary output to the file given. Note this will brutally overwrite existing files without warning. Use
+SAVE ( addr u "name" -- ) Following END, save the binary output to the file
+given. Note this will brutally overwrite existing files without warning. Use
 S" FILENAME" to get the name. 
-
 
 We don't need a ".EQU" command -- just use the VALUE built-in Forth command. 
 
 
-
 MODE SWITCHES 
 
-The 65816 is a hybrid processor that has an "emulation" mode, where it pretends to be an 8-bit 6502, and a "native" mode, where the A, X, and Y registers can be switched to 16 bits. We start off in emulation mode. To switch modes, use the commands
+The 65816 is a hybrid processor that has an "emulation" mode, where it pretends
+to be an 8-bit 6502, and a "native" mode, in which the A, X, and Y registers can
+be switched to 16 bits. The CPU starts off in emulation mode. To switch modes, use
+the commands
 
         emulated
 or
         native 
 
-These encode the SEC XCE and CLC XCE sequences respectively. You could code these instructions by hand. However, using these built-in commands lets the assembler know which mode it is supposed to be in. 
+These encode the SEC XCE and CLC XCE sequences respectively. You could code
+these instructions by hand. However, using these built-in commands lets the
+assembler know which mode it is supposed to be in. 
 
-There is a similiar situation with the size of the Accumulator and X and Y registers. Again, you can code these instuctions by hand with 
+There is a similar situation with the size of the Accumulator and X and Y
+registers. Again, you can code these instructions by hand with 
 
-                10 rep
+        10 rep
 or
-                20 sep
+        20 sep
 
-However, you should not do that, because the assembler needs to know what mode the processor is so it can decide if, say, A9 10 00 should be interpreted as 8-bit instruction sequence 
+However, you really should not do that, because the assembler needs to know
+what mode the processor is so it can decide if, say, A9 10 00 should be
+interpreted as 8-bit instruction sequence 
 
-                10 lda.# 
-                   brk 
+        10 lda.# 
+           brk 
 
 or the 16-bit variant 
 
-              0010 lda.#  
+        0010 lda.#  
         
-The normal WDC assembler format uses the pseudo-commands LONGA ON/OFF and LONGI ON/OFF to tell this to the assembler. These commands do not generate any code. The Typist's Assembler uses the commands
+The normal WDC assembler format uses the pseudo-instructions LONGA ON/OFF and
+LONGI ON/OFF to tell this to the assembler. These directives do not generate
+any code. The Typist's Assembler Notation uses the instructions
 
     a:8   a:16   xy:8   xy:16   axy:8   axy:16
 
-that not only encode the REP and SEP sequences, but also make sure that the correct number of operands are assigned to the hybrid opcodes. Therefore, again, it is really, really important that mode switches are performed by using those commands and not directly with REP and SEP (unless you really, really know what you are doing). 
+that not only encode the REP and SEP sequences, but also make sure that the
+correct number of operands are assigned to the hybrid mnemonics. Therefore,
+again, it is really important that mode switches are performed by using those
+directives and not directly with REP and SEP (unless you really know what you
+are doing). 
 
 Compare the example from the WDC manual on page 92 to our version: 
 
-      MACHINE CODE      WDC ASSEMBLER        TYPIST'S ASSEMBLER
+      MACHINE CODE      WDC SYNTAX           TYPIST'S ASSEMBLER
 
          E2 20          SEP #$00100000            a:8 
                         LONGA OFF               
          A9 3F          LDA #$3F               3f lda.# 
       8D 00 B1          STA $B100           0b100 sta 
 
-Note the A:8 command automatically takes care of the SEP instruction for us, and also includes the function of the LONGA OFF sequence. We added an extra zero to the address $B100 to make sure it's not considered a Forth word.
+Note the A:8 directive automatically takes care of the SEP instruction for us,
+and also includes the function of the LONGA OFF sequence. We added an extra
+zero to the address $B100 to make sure it's not considered a Forth word.
 
 
-LABELS, JUMPS AND BRANCHES
+LABELS, JUMPS, AND BRANCHES
 
-Here's another problem with existing Forth assemblers: A lot of them don't accept labels, especially not forward references. They tell you to suck it up and use "structured programming" instead. Er, no. 
+Here's another problem with existing Forth assemblers: A lot of them don't
+accept labels, especially not forward references. They tell you to suck it up
+and use "structured programming" instead. Er, no. 
 
-As you can tell from the examples, labels are prefixed with "->" ("-->" would have been easier to read but it's used in ancient Forths as part of the BLOCK commands). Once a label is defined, you can use it for backwards jumps, branches and references without further ado. 
+As you can tell from the examples, labels are prefixed with "->" ("-->" would
+have been easier to read but it's used in ancient Forths as part of the BLOCK
+commands). Once a label is defined, you can use it for backwards jumps,
+branches and references without further ado. See: 
    
    -> frog         nop
               frog bra
               frog jmp
 
-(When choosing a loop label name, remember that LOOP is already taken by Forth itself, as are REPEAT, BEGIN, BRANCH and AGAIN.) 
+(When choosing a label name, remember that LOOP is already taken by Forth
+itself, as are REPEAT, BEGIN, BRANCH and AGAIN.) 
 
-Forward branches are a bit more complicated, because internally the assembler has to create a list of unresolved "future" references until the actual location of the label is known (a well-defined problem with single-pass assemblers). We deal with the problem by assigning a special directive, "<?", to prefix any such instruction: 
+Forward branches are a bit more complicated, because internally the assembler
+has to create a list of unresolved "future symbol" references until the actual
+location of the label is known (a well-defined problem with single-pass
+assemblers). In the Forth version of TAN, we deal with the problem by assigning
+a special directive, "<?", to prefix any such instruction: 
 
            <? frog jsr 
            <? frog jsr.l 
@@ -316,7 +413,18 @@ Forward branches are a bit more complicated, because internally the assembler ha
               dogs bra 
                    rts
 
-By convention, there is one space between the "<?" instruction and the label name. The assembler is intelligent enough to figure out what is a branch and what is a jump and to handle the codes appropriately. After the label has been defined with "->", we can access it without any further hassle. Future references are hard on the assembler (in other words, they take more time). 
+By convention, there is one space between the "<?" directive and the label
+name. The assembler is intelligent enough to figure out what is a branch and
+what is a jump and to handle the codes appropriately. After the label has been
+defined with "->", we can reference it without any further hassle. 
+
+Note we can use the Forth math functions on the labels.
+
+          dogs 1+ jmp
+
+They come after the label and before the mnemonic. You can pretty much do
+anything Forth will let you, as long as at the end, there is an address that
+the assembler can feed to the instruction. 
 
 
 STYLE CONVENTIONS
@@ -324,9 +432,9 @@ STYLE CONVENTIONS
 As a very rough guide, labels and Forth code are indented by four spaces: 
 
    -> cake
-   dup 1+ swap nip 
 
-The opcode body starts at 20 spaces in ("middle justified"). This means that the operands are ragged to the left. 
+The mnemonic body starts at 20 spaces in ("middle justified"). This means that
+the operands are ragged to the left. 
 
                    nop
               1000 lda.# 
@@ -337,16 +445,22 @@ Currently, there is not vim mode to handle this automatically.
 
 WARNINGS
 
-Since this is a primitive, one-pass assembler, there are not too many things it checks for and even fewer optimizations (zero at the moment, to be exact). Currently it
+Since this is a primitive, one-pass assembler, there are not too many things it
+checks for and even fewer optimization (actually, zero at the moment, to be
+exact). Currently it
 
 - Checks for the WDM instruction ($42), as this probably is some sort of an
   error
-- Warns if XCE is not preceeded by CLC or SEC, because this might be trouble
+- Warns if XCE is not preceded by CLC or SEC, because this might be trouble
+  as well
 
 
 ANYTHING ELSE?
 
-The assembler uses single, unsorted linked lists to deal with unresolved forward references. Use the following routine as a base to print the contents of these list during debugging. (Note: This fragment is not maintained and might require tweaking to work.) 
+The assembler uses single, unsorted linked lists to deal with unresolved
+forward references. Use the following routine as a base to print the contents
+of these list during debugging. (Note: This fragment is not maintained and
+might require tweaking to work.) 
 
 \ ========== DEBUGGING AIDS TODO REMOVE ME ==============
 
@@ -371,22 +485,26 @@ variable temp  0 temp !
 
 \ ========== DEBUGGING AIDS END TODO REMOVE ME =========
 
-Use this by assigning the xt of first entry to temp and then running
-"temp @ dumplabellist" from inside Forth. Remove after finished. 
+Use this by assigning the xt of first entry to temp and then running "temp @
+dumplabellist" from inside Forth. Remove after finished. 
 
 The source code is extensively commented. 
  
 
 LEGAL STUFF
 
-A Typist's 65816 Assembler in Forth is released under the GNU Public License, see LICENSE. Use this software at your own risk. 
+A Typist's 65816 Assembler in Forth is released under the GNU Public License,
+see LICENSE. Use this software at your own risk. 
 
 
 LINKS 
 
-- For all things to do with the 6502/65c02/65816, see http://www.6502.org/
-  Very nice, very helpful people. 
+For all things to do with the 6502/65c02/65816, see http://www.6502.org/ Very
+nice, very helpful people. 
 
-- Brad Rodriguez has published a series of articles on how to write your own assembler in Forth which were invaluable for this project. See those and other writings on Forth at http://www.bradrodriguez.com/papers/
+Brad Rodriguez has published a series of articles on how to write your own
+assembler in Forth which were invaluable for this project. See those and other
+writings on Forth at http://www.bradrodriguez.com/papers/
 
-- Backgrounder book: "Assemblers And Loaders" by David Salomon (1993). Available as free PDF from http://www.davidsalomon.name/assem.advertis/AssemAd.html
+Backgrounder book: "Assemblers And Loaders" by David Salomon (1993). Available
+as free PDF from http://www.davidsalomon.name/assem.advertis/AssemAd.html
