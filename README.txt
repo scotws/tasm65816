@@ -1,7 +1,17 @@
 A Typist's 65816 Assembler in Forth
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version:  06. July 2015
+This version:  14. July 2015
+
+
+THIS IS AN EXPERIMENTAL SIDE BRANCH OF THE ASSEMBLER, NOT MEANT FOR 
+PRODUCTION USE. 
+
+This variant used "<?" as a generic reference for all unresolved future labels. Though it works, it turns out to be too complex under the hood -- very hard to maintain -- and not flexible enough for the user. Because of this, we reverted to the system with specialized references such as "<j" and "<bl". 
+
+
+ORIGINAL README: 
+
 
 This is an single-pass cross-assembler for the 65815 8/16-bit hybrid MPU, the
 big brother of the famous 6502, written in Gforth. It is BETA software, which

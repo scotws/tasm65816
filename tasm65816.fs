@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 05. July 2015 
+\ This version: 14. July 2015 
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -16,6 +16,9 @@
 
 \ You should have received a copy of the GNU General Public License
 \ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+cr .( THIS IS AN EXPERIMENTAL SIDEBRANCH OF THE ASSEMBLER )
+cr .( THIS VERSION IS NOT MAINTAINED, DO NOT USE FOR PRODUCTION ) cr
 
 hex
 
