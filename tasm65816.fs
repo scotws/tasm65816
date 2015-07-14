@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 05. July 2015 
+\ This version: 14. July 2015 
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -135,7 +135,7 @@ create splittable
 \ calculate offset to the start of the staging area for the operand of
 \ JMP/JSR/BRA etc opcodes. In other words, skip one byte to leave space
 \ for these opcodes
-: bc+1  ( -- offset )  bc @ 1+ ; 
+: hole  ( -- offset )  bc @ 1+ ; 
 
 \ Use flag to tell branch or jump instruction that its label is an 
 \ unresolved future reference that it needs to take care of. If value is
@@ -170,7 +170,8 @@ variable tofuture  tofuture clear
      drop nextname create  
      0 ,          \ mark tail of new linked list with zero
    then 
-   bc+1 ,      \ save location of operand hole (address) 
+
+   hole ,      \ save location of operand hole (address) 
    0 , ;       \ save space for type of link (xt) 
 
 \ Mark an unresolved future symbol (forward label reference) for branches
