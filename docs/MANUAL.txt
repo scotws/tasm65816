@@ -1,7 +1,7 @@
 The Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 07. July 2015 
+This version: 14. July 2015 (Pluto flyby day)
 
 
 TL;DR
@@ -402,21 +402,39 @@ Forward branches are a bit more complicated, because internally the assembler
 has to create a list of unresolved "future symbol" references until the actual
 location of the label is known (a well-defined problem with single-pass
 assemblers). In the Forth version of TAN, we deal with the problem by assigning
-a special directive, "<?", to prefix any such instruction: 
+special directives to the unresolved labels.
 
-           <? frog jsr 
-           <? frog jsr.l 
-           <? dogs bra
+           <j frog jsr 
+          <jl frog jsr.l 
+           <b dogs bra
 
    -> dogs         brk 
    -> frog         inc
               dogs bra 
                    rts
 
-By convention, there is one space between the "<?" directive and the label
-name. The assembler is intelligent enough to figure out what is a branch and
-what is a jump and to handle the codes appropriately. After the label has been
-defined with "->", we can reference it without any further hassle. 
+By convention, there is one space between the "<*" directive and the label
+name. Currently, we recognize these directives: 
+
+        <j      jump absolute (for jmp, jsr); 2 byte operand
+        <jl     jump absolute long (for jmp.l, jsr.l); 3 byte operand
+        <b      branch relative (for bra, bne, etc); 1 byte operand
+        <bl     branch relative long (for bra.l); 2 byte operand
+
+        <lsb    reference to least significant byte
+        <msb    reference to most significant byte
+        <bank   reference to bank byte 
+
+We don't only use these labels for jumping or branching. For cases where that might be weird such as phe.r (PER in traditional syntax), we define the following synonyms:
+
+        <a      synonym for <j, "absolute"
+        <al     synonym for <jl, "absolute long"
+        <r      synonym for <b, "relative"
+        <rl     synonym for <rl, "relative long"
+
+(Why all those different directives? In fact, there was a version of this assembler that used just one of them -- "<?" -- and had the program figure out under the hood what was meant. The result, however, was some enormously messy code and a loss of flexibility.) 
+
+After the label has been defined with "->", we can reference it without any further hassle. 
 
 Note we can use the Forth math functions on the labels.
 

@@ -2,7 +2,7 @@
 \ A Typist's 65816 Assembler in Forth
 \ Scot W. Stevenson <scot.stevenson@gmail.com>
 \ First version: 12. Jun 2015
-\ This version: 05. Jul 2015
+\ This version: 14. Jul 2015
 
 \ This is a primitive testing suite. Load it after starting Gforth with 
 \ "gforth -m 1G" and "include tasm65816.fs" with the instruction

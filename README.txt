@@ -1,7 +1,7 @@
 A Typist's 65816 Assembler in Forth
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version:  06. July 2015
+This version:  14. July 2015 (Pluto flyby day)
 
 This is an single-pass cross-assembler for the 65815 8/16-bit hybrid MPU, the
 big brother of the famous 6502, written in Gforth. It is BETA software, which
