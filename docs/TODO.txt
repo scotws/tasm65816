@@ -5,8 +5,6 @@ This version: 18. July 2015
 
 This is BETA software, so it needs more testing. A lot more testing. New features will be considered after some real-world experience with the assembler. 
 
-- Add nag lines when synonyms such as PEI are used
 - Warn if stack relative addressing with 0 is present ("0 lda.s") 
-- Add check for range for future references of relative branches 
 - Refactor a bunch of words that are just too ugly at the moment
 
