@@ -1,11 +1,12 @@
 TODO for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 14. July 2015 (Pluto flyby day)
+This version: 18. July 2015 
 
 This is BETA software, so it needs more testing. A lot more testing. New features will be considered after some real-world experience with the assembler. 
 
-- Revert to old future reference system with "<j" etc
 - Add nag lines when synonyms such as PEI are used
 - Warn if stack relative addressing with 0 is present ("0 lda.s") 
+- Add check for range for future references of relative branches 
+- Refactor a bunch of words that are just too ugly at the moment
 

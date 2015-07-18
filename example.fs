@@ -2,7 +2,7 @@
 \ A Typist's 65816 Assembler in Forth
 \ Scot W. Stevenson <scot.stevenson@gmail.com>
 \ First version: 31. May 2015
-\ This version: 06. July 2015
+\ This version: 18. July 2015
 
 \ Remember this is assembler source file is actually a Forth programm listing
 \ as far as Forth is concerned. As such, the file type should be .fs instead
@@ -112,10 +112,9 @@
            lc 1- bra 
 
         \ forward jumps are a pain in the rear for single-pass assemblers
-        \ (which is what this is). We solve this by adding a sick amount 
-        \ of code unter the hood and the future branch directive <?. This
-        \ is the same for branches, jumps and subroutine calls.
-         <? frog jsr
+        \ (which is what this is). We solve this by adding future reference
+        \ directives such as <j and <b. 
+         <j frog jsr
 
         \ once we have defined the label, we can go back to using normal
         \ links as above

@@ -1,7 +1,7 @@
 The Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 14. July 2015 (Pluto flyby day)
+This version: 18. July 2015 
 
 
 TL;DR
@@ -25,11 +25,11 @@ SERIOUSLY, WHY?
 Forth is a fantastic language to write assemblers in - 
 
 
-DUDE, ISN'T FORTH SOME ANCIENT LANGUAGE LIKE COBOL?
+WAIT, ISN'T FORTH SOME ANCIENT LANGUAGE LIKE COBOL?
 
 Forth is usually classified as a programming language, though it's actually an
 environment to create tailor-made programming languages in. It is still very
-much in use, for instance with the Cassini-Huygens probe at Saturn or NEAR
+much in use, for instance with the Cassini-Huygens probe at Saturn or the NEAR
 Shoemaker comet lander. An introduction to Forth is beyond the scope of this
 document, see https://en.wikipedia.org/wiki/Forth_(programming_language) for
 general background and "Thinking Forth" by Leo Brodie
@@ -125,7 +125,7 @@ something like Python and the above example would be
               dex
               bne loop1 
 
-Currently, there is no such assembler. 
+Currently, there is no such assembler.
 
 
 MNEMONIC SYNONYMS
@@ -471,6 +471,11 @@ exact). Currently it
   error
 - Warns if XCE is not preceded by CLC or SEC, because this might be trouble
   as well
+
+
+KNOWN ISSUES
+
+The check to see if a relative branch (eg for bra or bne) is in range does not work correctly with future references such as "<b". The problem is that the check is currently preformed on the dummy value. This is a know issue that is on the list of things to fix.
 
 
 ANYTHING ELSE?

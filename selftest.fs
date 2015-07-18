@@ -2,7 +2,7 @@
 \ A Typist's 65816 Assembler in Forth
 \ Scot W. Stevenson <scot.stevenson@gmail.com>
 \ First version: 12. Jun 2015
-\ This version: 14. Jul 2015
+\ This version: 18. Jul 2015
 
 \ This is a primitive testing suite. Load it after starting Gforth with 
 \ "gforth -m 1G" and "include tasm65816.fs" with the instruction
@@ -84,12 +84,12 @@
            toplink jmp.l      \ 5c 5a 0e0 00
            toplink jsr.l      \ 22 5a 0e0 00
 
-     <? bottomlink bra        \ 80 11
-     <? bottomlink jmp        \ 4c 81 0e0
-     <? bottomlink jsr        \ 20 81 0e0
-     <? bottomlink jmp.l      \ 5c 81 0e0 00
-     <? bottomlink jsr.l      \ 22 81 0e0 00
-     <? bottomlink bra.l      \ 82 00 00       
+     <b bottomlink bra        \ 80 11
+     <j bottomlink jmp        \ 4c 81 0e0
+     <j bottomlink jsr        \ 20 81 0e0
+    <jl bottomlink jmp.l      \ 5c 81 0e0 00
+    <jl bottomlink jsr.l      \ 22 81 0e0 00
+    <bl bottomlink bra.l      \ 82 00 00       
 
    -> bottomlink   nop        \ 0ea ; this is ORIGIN +81, eg 00e081 
 
@@ -98,9 +98,9 @@
 
       \ disassembler should point next three intructions to 
       \ the same address, e08b
-    <? preplace 1+ bra        \ 80 07     ; branches to pastplace
-    <? preplace 1+ jmp        \ 4c 8b e0  ; jumps to pastplace
-    <? preplace 1+ bra.l      \ 82 01 00  ; branches to pastplace
+    <b preplace 1+ bra        \ 80 07     ; branches to pastplace
+    <j preplace 1+ jmp        \ 4c 8b e0  ; jumps to pastplace
+   <bl preplace 1+ bra.l      \ 82 01 00  ; branches to pastplace
 
        -> preplace nop        \ 0ea
       -> pastplace nop        \ 0ea

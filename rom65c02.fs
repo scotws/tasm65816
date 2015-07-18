@@ -2,7 +2,7 @@
 \ A Typist's 65816 Assembler in Forth
 \ Scot W. Stevenson <scot.stevenson@gmail.com>
 \ First version: 31. May 2015
-\ This version: 28. Jun 2015 (Tau Day) 
+\ This version: 18. Jul 2015 
 
 \ After assembly, this creates an 8 kb binary file that can be 
 \ loaded to $E000 a 65c02 simulator such as p65mon you can use this 
@@ -44,7 +44,7 @@
                 00 ldy.#
    -> nxtchr
                 00 lda.diy
-           <? fini beq
+           <b fini beq
             putchr sta
                    iny
             nxtchr bra
