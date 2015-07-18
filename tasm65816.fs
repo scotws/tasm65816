@@ -82,22 +82,15 @@ variable bc  0 bc !
 \ Save linefeed-terminated  ASCII string provided by S" instruction
 : strlf, ( addr u -- ) str, 0a b, ; 
 
-\ Split up a 24 bit address in lsb, msb/lsb or bank/msb/lsb
-\ depending on the parameter 1 to 3 given with the address. 
-create splittable 
-   ' lsb ,   ' 16>msb/lsb ,   ' 24>bank/msb/lsb , 
+\ Make sure branches are in range 
+: branch-in-range?   ( n -- f )  -80 7f within ;      \ 8 bit branch
+: branch-in-range.l? ( n -- f )  -8000 7fff within ;  \ 16 bit branch
 
-: splitbytes  ( 24bit u -- lsb | msb lsb | bank msb lsb ) 
-   1- cells       ( offset )  \ index to splittable
-   splittable +   ( addr ) 
-   @ execute ; 
-
-\ Use bytesplitter to save split-up 24-bit address in little-endian
-\ format to staging area
-: split&save  ( 24bit u -- ) 
-   dup >r
-   splitbytes
-   r> 1+ 1 do b, loop ;  
+\ For error messages: Locate error. This brings the SPACE so you don't have
+\ to. Assumes it will be printed after actual error message with no CR
+: .errorlocation ( -- )  
+   space ." lc: " lc s>d <# # # # # # # #> type 
+   space ." bc: " bc . ; 
 
 
 \ -----------------------
@@ -127,48 +120,9 @@ create splittable
    drop write-file if 
       ." Error writing file" then ; 
 
-\ -----------------------
-\ BRANCHES 
-
-\ These words must be defined before dealing with unresolved future
-\ references because dummy>rel etc. use the check to see if the 
-\ relative offset is in range
-
-\ Make sure branch in range 
-: branch-in-range?   ( n -- f )  -80 7f within ;
-: branch-in-range.l? ( n -- f )  -8000 7fff within ; 
-
-\ TODO factor out error message 
-: shortbranch  ( 65adrr -- ) 
-   lc - 1-
-   dup branch-in-range? if b, 
-      else 
-         ." Error: Short branch out of range, lc: " lc . space
-         ." bc: " bc . cr drop 
-      then ; 
-
-: longbranch  ( 65adrr -- ) 
-   lc - 2 -
-   dup branch-in-range.l? if w, 
-      else 
-         ." Error: Long branch out of range, lc: " lc . space
-         ." bc: " bc . cr drop 
-      then ; 
-
-\ Create and test short branches like BRA (one byte offset, u=1) and long 
-\ branches like BRA.L (two bytes offset, u=1). Returns format suitable for
-\ split&save TODO consider fractoring 
-: twig  ( 65addr -- )
-  create c, 
-  does> c@ b, shortbranch ; 
-
-: twig.l ( 65addr -- ) 
-   create c, 
-   does> c@ b, longbranch ;
-
 
 \ -----------------------
-\ FUTURE SYMBOLS / UNRESOLVED FORWARD LABELS 
+\ HANDLE UNRESOLVED FORWARD LABELS (FUTURE REFERENCES) 
 
 \ Calculate offset to the start of the staging area for the operand of
 \ JMP/JSR/BRA etc opcodes. In other words, skip one byte forward from our
@@ -183,7 +137,7 @@ create splittable
 \ the staging area where the real address will later go, and 3) space for 
 \ the branch or jump instruction to save a reference (xt) to its specialized
 \ routine that will later create the actual address. New entries are added
-\ at the head. Note we only add 1) here, 2) and 3) are later. 
+\ at the head. Note we only add 1) here, 2) and 3) are added later. 
 : addlabel  ( "name" -- ) 
    parse-name 2dup find-name    ( addr u nt|0 )
    dup if   
@@ -206,8 +160,8 @@ create splittable
 \ REPLACEMENT ROUTINES for various forward branches. These are used by
 \ once we know the actual address we will be jumping or branching to so
 \ we can replace dummy references we saved. The xt of these routines is 
-\ saved in the linked list of future symbols. TODO find a better way to do
-\ these
+\ saved in the linked list of future symbols. 
+\ TODO find a better way to do these, because they are all ugly as sin
 
 \ Replace dummy references to an ABSOLUTE 16-bit address 
 : dummy>abs  ( buffer-offset -- )
@@ -221,7 +175,6 @@ create splittable
    c! ; 
 
 \ Replace dummy references to an ABSOLUTE 24-bit address 
-\ TODO This routine is far too long and really, really ugly
 : dummy>abs.l  ( buffer-offset -- )  
 
    \ step one: assemble 65addr from dummy parts
@@ -244,18 +197,20 @@ create splittable
    bank swap c! ; 
 
 \ replace dummy references to an RELATIVE offset 
-\ TODO add check to see if in range 
 : dummy>rel          ( buffer-offset -- )
    dup staging +     ( b-off addr ) 
    bc @              ( b-off addr bc ) 
    rot -  1+         ( addr 65off ) 
+
+   \ make sure branch is still in range
+   dup branch-in-range? invert if 
+      cr ." ERROR: Short branch out of range." .errorlocation then
 
    \ Get dummy to enable address math
    over c@ +         
    swap c! ;         
 
 \ replace dummy references to an RELATIVE LONG offset 
-\ TODO add check to see if in range 
 : dummy>rel.l        ( buffer-offset -- ) 
    dup staging +     ( b-off addr ) 
    bc @              ( b-off addr bc ) 
@@ -267,6 +222,10 @@ create splittable
    swap char+ c@     ( addr 65off lsb msb ) 
    lsb/msb>16        ( addr 65off u ) 
    + 
+
+   \ make sure branch is still in range
+   dup branch-in-range.l? invert if 
+      cr ." ERROR: Long branch out of range." .errorlocation then
 
    \ replace dummy with final result
    16>msb/lsb        ( addr msb lsb )
@@ -286,8 +245,6 @@ create splittable
 \ synonyms for non-jump/branch future references (eg phe.#) 
 : <a <j ;      : <al <jl ;     : <r <b ;      : <rl <bl ; 
 
-  
-      
 
 \ -----------------------
 \ LABELS 
@@ -324,7 +281,7 @@ create splittable
 
   
 \ -----------------------
-\ SIMPLE OPCODE DEFINITION FUNCTIONS
+\ DEFINING WORDS FOR OPCODES 
 
 \ As with TIMELESS, the number of bytes refers to the operand
 : 0byte  ( opcode -- ) ( -- ) 
@@ -343,9 +300,29 @@ create splittable
    create c, 
    does> c@ b, lw, ; 
 
-\ handle BLOCK MOVE instructions (MVN, MVP), which have a reverse order of
+\ Create short and long braches for instructions such as bra and bra.l. 
+\ Includes test if branch is too long. Note BRANCH is reserved by Forth.
+: twig  ( 65addr -- )
+  create c, 
+  does> c@ b, 
+      lc - 1-
+      dup branch-in-range? if b, 
+         else 
+            cr ." Error: Short branch out of range." .errorlocation drop
+         then ; 
+
+: twig.l ( 65addr -- ) 
+   create c, 
+   does> c@ b, 
+      lc - 2 -
+      dup branch-in-range.l? if w, 
+         else 
+            cr ." Error: Long branch out of range." .errorlocation drop
+         then ; 
+
+\ Handle block move instructions (MVN, MVP), which have a reverse order of
 \ operands in machine code and assembler. BLOCK and MOVE are reserved by Forth
-: blkmv  ( opc -- ) ( opr opr opc -- ) 
+: moveblock ( opc -- ) ( opr opr opc -- ) 
    create c,
    does> c@ b,          \ Save opcode 
       lsb b,  lsb b, ;  \ save operands in correct sequence
@@ -353,7 +330,7 @@ create splittable
 
 \ -----------------------
 \ OPCODE TABLE 
-\ TODO check these manually
+\ TODO recheck these manually
 
 00 1byte brk     01 1byte ora.dxi   02 1byte cop      03 1byte ora.s
 04 1byte tsb.d   05 1byte ora.d     06 1byte asl.d    07 1byte ora.dil
@@ -376,12 +353,12 @@ create splittable
 3c 2byte bit.x   3d 2byte and.x     3e 2byte rol.x    3f 3byte and.lx
 
 40 0byte rti     41 1byte eor.dxi   ( 42 see below )  43 1byte eor.s
-44 blkmv mvp     45 1byte eor.d     46 1byte lsr.d    47 1byte eor.dil
+44 moveblock mvp 45 1byte eor.d     46 1byte lsr.d    47 1byte eor.dil
 48 0byte pha     ( 49 see below )   4a 0byte lsr.a    4b 0byte phk
 4c 2byte jmp     4d 2byte eor       4e 2byte lsr      4f 3byte eor.l
 
 50 twig bvc      51 1byte eor.diy   52 1byte eor.di   53 1byte eor.siy
-54 blkmv mvn     55 1byte eor.dx    56 1byte lsr.dx   57 1byte eor.dily
+54 moveblock mvn 55 1byte eor.dx    56 1byte lsr.dx   57 1byte eor.dily
 58 0byte cli     59 2byte eor.y     5a 0byte phy      5b 0byte tcd      
 5c 3byte jmp.l   5d 2byte eor.x     5e 2byte lsr.x    5f 3byte eor.lx
 
@@ -511,20 +488,27 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
    bc @  2 -  staging  +  \ get address of previous instruction
    c@ dup               
    18 = invert  swap  38 = invert  and  if 
-      cr ." Warning: No CLC or SEC before XCE in byte " lc . cr then ; 
+         cr ." WARNING: No CLC or SEC before XCE." .errorlocation
+      then ; 
 
 \ wdm: Warn if we encounter this command
 : wdm ( b -- ) 
    42 b, b, 
-   cr ." Warning: WDM instruction encountered in byte " lc . cr ; 
+   cr ." WARNING: WDM instruction encountered." .errorlocation ; 
 
 
 \ SYNONYMS: We use systematic names ("jmp.l") where WDC defines 
 \ distinct opcodes ("JML"). For people who insist on these, we
 \ we define the WDC codes as synonyms
-\ TODO add nag message
-: jsl jsr.l ;   : jml jmp.l ;   : per phe.r ;   : rtl rts.l ; 
-: brl bra.l ;   : pei phe.di ;  : pea phe.# ; 
+: .synonym-nag  ( -- )  cr ." WARNING: Non-standard mnemonic. Change " ; 
+
+: brl bra.l .synonym-nag ." BRL to BRA.L" .errorlocation ; 
+: jsl jsr.l .synonym-nag ." JSL to JSR.L" .errorlocation ; 
+: jml jmp.l .synonym-nag ." JML to JMP.L" .errorlocation ; 
+: pea phe.# .synonym-nag ." PEA to PHE.#" .errorlocation ; 
+: pei phe.di .synonym-nag ." PEI to PHE.DI" .errorlocation ; 
+: per phe.r .synonym-nag ." PER to PHE.R" .errorlocation ; 
+: rtl rts.l .synonym-nag ." RTL to RTS.L" .errorlocation ; 
 
 
 \ Switch to 8/16 bit with SEP/REP instructions 
