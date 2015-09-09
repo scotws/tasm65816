@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 18. July 2015
+\ This version: 20. July 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -161,7 +161,14 @@ variable bc  0 bc !
 \ once we know the actual address we will be jumping or branching to so
 \ we can replace dummy references we saved. The xt of these routines is 
 \ saved in the linked list of future symbols. 
-\ TODO find a better way to do these, because they are all ugly as sin
+
+\ Retrieve dummy references from the staging area given the offset to
+\ the beginning of the buffer and the number of bytes involved (1 to 3).
+\ Stack comments assume three bytes
+: get-dummy  ( offset u -- addr u ) 
+   ; \ TODO HIER HIER 
+
+
 
 \ Replace dummy references to an ABSOLUTE 16-bit address 
 : dummy>abs  ( buffer-offset -- )

@@ -1,7 +1,7 @@
 The Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 18. July 2015 
+This version: 09. September 2015
 
 
 TL;DR
@@ -512,6 +512,27 @@ Use this by assigning the xt of first entry to temp and then running "temp @
 dumplabellist" from inside Forth. Remove after finished. 
 
 The source code is extensively commented. 
+
+
+VECTOR LIST
+
+The 65816 has a different list of vectors than the 6502. To make life easier, here is a list of the various locations for cut and paste use.
+
+<vector> w,   \ ffe4  COP   (native mode) 
+<vector> w,   \ ffe6  BRK   (native mode) 
+<vector> w,   \ ffe8  ABORT (native mode) 
+<vector> w,   \ ffea  NMI   (native mode) 
+0000     w,   \ ffec  -- unused -- 
+<vector> w,   \ ffee  IRQ   (native mode) 
+0000     w,   \ fff0  -- unused -- 
+0000     w,   \ fff2  -- unused -- 
+<vector> w,   \ fff4  COP   (emulation mode) 
+0000     w,   \ fff6  -- unused -- 
+<vector> w,   \ fff8  ABORT (emulation mode) 
+<vector> w,   \ fffa  NMI   (emulation mode)
+<vector> w,   \ fffc  RESET (emulation mode) 
+<vector> w,   \ fffe  IRQ   (emulation mode) 
+
  
 
 LEGAL STUFF
