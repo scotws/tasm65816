@@ -1,7 +1,7 @@
 The Manual for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 09. September 2015
+This version: 15. September 2015
 
 
 TL;DR
@@ -140,7 +140,7 @@ commands, so we provide some synonyms:
         5c        JML        jmp.l          jml
         22        JSL        jsr.l          jsl
         f4        PEA        phe.#          pea
-        d4        PEI        phe.di         pei
+        d4        PEI        phe.d          pei
         62        PER        phe.r          per
         6b        RTL        rts.l          rtl
 

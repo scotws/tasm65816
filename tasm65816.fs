@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 20. July 2015
+\ This version: 17. Sep 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -161,14 +161,6 @@ variable bc  0 bc !
 \ once we know the actual address we will be jumping or branching to so
 \ we can replace dummy references we saved. The xt of these routines is 
 \ saved in the linked list of future symbols. 
-
-\ Retrieve dummy references from the staging area given the offset to
-\ the beginning of the buffer and the number of bytes involved (1 to 3).
-\ Stack comments assume three bytes
-: get-dummy  ( offset u -- addr u ) 
-   ; \ TODO HIER HIER 
-
-
 
 \ Replace dummy references to an ABSOLUTE 16-bit address 
 : dummy>abs  ( buffer-offset -- )
@@ -405,7 +397,7 @@ variable bc  0 bc !
 0cc 2byte cpy     0cd 2byte cmp      0ce 2byte dec     0cf 3byte cmp.l
 
 0d0 twig bne      0d1 1byte cmp.diy  0d2 1byte cmp.di  0d3 1byte cmp.siy 
-0d4 1byte phe.di  0d5 1byte cmp.dx   0d6 1byte dec.dx  0d7 1byte cmp.dily 
+0d4 1byte phe.d   0d5 1byte cmp.dx   0d6 1byte dec.dx  0d7 1byte cmp.dily 
 0d8 0byte cld     0d9 2byte cmp.y    0da 0byte phx     0db 0byte stp       
 0dc 2byte jmp.il  0dd 2byte cmp.x    0de 2byte dec.x   0df 3byte cmp.lx
 
@@ -513,7 +505,7 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 : jsl jsr.l .synonym-nag ." JSL to JSR.L" .errorlocation ; 
 : jml jmp.l .synonym-nag ." JML to JMP.L" .errorlocation ; 
 : pea phe.# .synonym-nag ." PEA to PHE.#" .errorlocation ; 
-: pei phe.di .synonym-nag ." PEI to PHE.DI" .errorlocation ; 
+: pei phe.d .synonym-nag ." PEI to PHE.D" .errorlocation ; 
 : per phe.r .synonym-nag ." PER to PHE.R" .errorlocation ; 
 : rtl rts.l .synonym-nag ." RTL to RTS.L" .errorlocation ; 
 

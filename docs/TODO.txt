@@ -1,11 +1,22 @@
 TODO for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 08. Sep 2015
+This version: 15. Sep 2015
 
 This is BETA software, so it needs more testing. A lot more testing. New features will be considered after some real-world experience with the assembler. 
 
+PRIORITY
+
+- Fix BRK so that single instruction does not throw an error
+
+
+SECONDARY
+
 - Add C/A synonyms ("TSA" for TSC) with warnings
 - Warn if stack relative addressing with 0 is present ("0 lda.s") 
+
+
+SOMETIME 
+
 - Refactor a bunch of words that are just too ugly at the moment
 
