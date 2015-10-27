@@ -1,7 +1,7 @@
 TODO for A Typist's 65816 Assembler in Forth 
 Scot W. Stevenson <scot.stevenson@gmail.com>
 First version: 31. May 2015
-This version: 19. Sep 2015
+This version: 23. Sep 2015
 
 This is BETA software, so it needs more testing. A lot more testing. New features will be considered after some real-world experience with the assembler. 
 
@@ -13,6 +13,8 @@ PRIORITY
 SECONDARY
 
 - Add C/A synonyms ("TSA" for TSC) with warnings
+- Add A:8/XY:16 and A:16/XY:8 instructions
+- Add RESET-STACK in emulated mode as macro to return S to 01FF
 - Add BLT as synonym for BCC, BGE for BCS 
   (see http://www.6502.org/tutorials/compare_beyond.html) 
 - Warn if stack relative addressing with 0 is present ("0 lda.s") 

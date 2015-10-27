@@ -2,7 +2,7 @@
 \ Copyright 2015 Scot W. Stevenson <scot.stevenson@gmail.com>
 \ Written with gforth 0.7
 \ First version: 31. May 2015
-\ This version: 17. Sep 2015
+\ This version: 27. Oct 2015
 
 \ This program is free software: you can redistribute it and/or modify
 \ it under the terms of the GNU General Public License as published by
@@ -421,8 +421,8 @@ variable x-flag   \ 16-bit (0) or 8 bit (1) X and Y registers
 
 \ switch emulation/native mode. Use these commands instead of coding 
 \ the instructions directly
-: emulated  ( -- )  true e-flag !  38 b, 0fb b, ;  \ CLC 
-: native  ( -- )  false e-flag !  18 b, 0fb b, ;  \ SEC 
+: emulated  ( -- )  true e-flag !  38 b, 0fb b, ;  \ sec
+: native  ( -- )  false e-flag !  18 b, 0fb b, ;   \ clc
 
 \ make things easier for the poor humans and make asserting easier
 : a=8?  ( -- f )  m-flag @  ; 
